@@ -2,6 +2,10 @@
 
 All notable changes to `n8n-nodes-simplyprint` are documented here.
 
+## 0.2.4
+
+- Fall back to classic NPM_TOKEN for publish auth. Trusted Publishing did not fire reliably on this runner setup (kept falling back to empty-token auth). OIDC can be revisited later.
+
 ## 0.2.3
 
 - Remove `registry-url` from setup-node so no `.npmrc` auth template is written. With that template present, npm preferred empty-token auth over OIDC and 404'd on publish even with Trusted Publishing correctly configured.

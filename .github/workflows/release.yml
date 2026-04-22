@@ -19,15 +19,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Node 24 ships with npm 11.x, required for Trusted Publishing (OIDC).
-      # Do NOT pass `registry-url` here: setup-node would write an .npmrc
-      # with `_authToken=${NODE_AUTH_TOKEN}`, which makes npm prefer empty
-      # token auth over OIDC and 404 on publish. Without that .npmrc, npm
-      # falls through to Trusted Publishing cleanly.
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 24.x
+          registry-url: 'https://registry.npmjs.org'
           cache: npm
 
       - run: npm ci --ignore-scripts
@@ -45,11 +41,15 @@ jobs:
             exit 1
           fi
 
-      # Uses npm Trusted Publishing (OIDC) - no NPM_TOKEN needed.
-      # Requires a Trusted Publisher configured on npmjs.com pointing at
-      # this repo + workflow + job name. See release-checklist in README.
+      # Classic npm token auth. Trusted Publishing / OIDC did not fire
+      # reliably on this runner setup (npm 11 kept falling back to empty-
+      # token auth); switched to NPM_TOKEN as a pragmatic fallback.
+      # NPM_TOKEN is a Granular Access Token scoped to
+      # @simplyprint/n8n-nodes-simplyprint with Write access.
       - name: Publish to npm
         run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
