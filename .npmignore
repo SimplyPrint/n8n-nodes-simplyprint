@@ -1,0 +1,13 @@
+.github
+.vscode
+node_modules
+src
+.eslintrc.js
+.prettierrc.js
+gulpfile.js
+nodes
+credentials
+tsconfig.json
+*.tgz
+*.map
+.turbo

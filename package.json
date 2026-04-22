@@ -1,0 +1,73 @@
+{
+  "name": "n8n-nodes-simplyprint",
+  "version": "0.1.0",
+  "description": "n8n community node for SimplyPrint - monitor 3D printer fleets, manage queues, automate print jobs.",
+  "keywords": [
+    "n8n-community-node-package",
+    "simplyprint",
+    "3d-printing",
+    "automation",
+    "print-farm"
+  ],
+  "license": "MIT",
+  "homepage": "https://simplyprint.io/integrations/n8n",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/simplyprint/n8n-nodes-simplyprint.git"
+  },
+  "author": {
+    "name": "SimplyPrint",
+    "email": "contact@simplyprint.io",
+    "url": "https://simplyprint.io"
+  },
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc && gulp build:icons",
+    "dev": "tsc --watch",
+    "format": "prettier nodes credentials --write",
+    "lint": "eslint nodes credentials package.json",
+    "lintfix": "eslint nodes credentials package.json --fix",
+    "prepublishOnly": "npm run build && npm run lint"
+  },
+  "files": [
+    "dist"
+  ],
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "credentials": [
+      "dist/credentials/SimplyPrintOAuth2Api.credentials.js",
+      "dist/credentials/SimplyPrintApi.credentials.js"
+    ],
+    "nodes": [
+      "dist/nodes/SimplyPrint/SimplyPrint.node.js",
+      "dist/nodes/SimplyPrintPrintStartedTrigger/SimplyPrintPrintStartedTrigger.node.js",
+      "dist/nodes/SimplyPrintPrintPausedTrigger/SimplyPrintPrintPausedTrigger.node.js",
+      "dist/nodes/SimplyPrintPrintResumedTrigger/SimplyPrintPrintResumedTrigger.node.js",
+      "dist/nodes/SimplyPrintPrintFinishedTrigger/SimplyPrintPrintFinishedTrigger.node.js",
+      "dist/nodes/SimplyPrintPrintFailedTrigger/SimplyPrintPrintFailedTrigger.node.js",
+      "dist/nodes/SimplyPrintPrintCancelledTrigger/SimplyPrintPrintCancelledTrigger.node.js",
+      "dist/nodes/SimplyPrintQueueItemAddedTrigger/SimplyPrintQueueItemAddedTrigger.node.js",
+      "dist/nodes/SimplyPrintQueueItemApprovedTrigger/SimplyPrintQueueItemApprovedTrigger.node.js",
+      "dist/nodes/SimplyPrintQueueItemDeniedTrigger/SimplyPrintQueueItemDeniedTrigger.node.js",
+      "dist/nodes/SimplyPrintQueueItemPendingApprovalTrigger/SimplyPrintQueueItemPendingApprovalTrigger.node.js",
+      "dist/nodes/SimplyPrintFilamentAssignedTrigger/SimplyPrintFilamentAssignedTrigger.node.js",
+      "dist/nodes/SimplyPrintFilamentUnassignedTrigger/SimplyPrintFilamentUnassignedTrigger.node.js",
+      "dist/nodes/SimplyPrintAiFailureDetectedTrigger/SimplyPrintAiFailureDetectedTrigger.node.js",
+      "dist/nodes/SimplyPrintMaintenanceJobOverdueTrigger/SimplyPrintMaintenanceJobOverdueTrigger.node.js",
+      "dist/nodes/SimplyPrintMaintenanceProblemReportedTrigger/SimplyPrintMaintenanceProblemReportedTrigger.node.js"
+    ]
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.7",
+    "@typescript-eslint/parser": "~7.15.0",
+    "eslint": "^8.57.0",
+    "eslint-plugin-n8n-nodes-base": "^1.16.3",
+    "gulp": "^4.0.2",
+    "n8n-workflow": "*",
+    "prettier": "^3.3.2",
+    "typescript": "~5.4.5"
+  },
+  "peerDependencies": {
+    "n8n-workflow": "*"
+  }
+}

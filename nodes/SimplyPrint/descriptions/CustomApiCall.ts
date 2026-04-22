@@ -1,0 +1,74 @@
+import type { INodeProperties } from 'n8n-workflow';
+
+const show = { resource: ['customApiCall'] };
+
+export const customApiCallOperations: INodeProperties[] = [
+	{
+		displayName: 'Operation',
+		name: 'operation',
+		type: 'options',
+		noDataExpression: true,
+		displayOptions: { show },
+		options: [
+			{
+				name: 'Custom API Call',
+				value: 'call',
+				action: 'Call any SimplyPrint API endpoint',
+				description:
+					'Escape hatch for endpoints this node does not wrap directly. Path is relative to the company (e.g. "printers/Get")',
+			},
+		],
+		default: 'call',
+	},
+];
+
+export const customApiCallFields: INodeProperties[] = [
+	{
+		displayName: 'HTTP Method',
+		name: 'method',
+		type: 'options',
+		options: [
+			{ name: 'GET', value: 'GET' },
+			{ name: 'POST', value: 'POST' },
+			{ name: 'PUT', value: 'PUT' },
+			{ name: 'PATCH', value: 'PATCH' },
+			{ name: 'DELETE', value: 'DELETE' },
+		],
+		default: 'GET',
+		displayOptions: { show },
+	},
+	{
+		displayName: 'Path',
+		name: 'path',
+		type: 'string',
+		default: '',
+		required: true,
+		placeholder: 'printers/Get',
+		description: 'Endpoint path relative to the company scope. Leading slash optional.',
+		displayOptions: { show },
+	},
+	{
+		displayName: 'Query Parameters',
+		name: 'queryParams',
+		type: 'json',
+		default: '{}',
+		description: 'JSON object of query string params',
+		displayOptions: { show },
+	},
+	{
+		displayName: 'JSON Body',
+		name: 'body',
+		type: 'json',
+		default: '{}',
+		description: 'JSON request body. Ignored for GET.',
+		displayOptions: { show },
+	},
+	{
+		displayName: 'Use Company Scope',
+		name: 'useCompany',
+		type: 'boolean',
+		default: true,
+		description: 'Whether to prefix the path with the bound company ID (/api/{company}/...). Turn off to hit company-scope-less endpoints like /0/account/GetUser.',
+		displayOptions: { show },
+	},
+];
