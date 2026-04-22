@@ -17,8 +17,8 @@ jobs:
     environment: npm
     
     permissions:
-      contents: read
-      id-token: write 
+      contents: write   # needed by softprops/action-gh-release to create the release
+      id-token: write   # for npm Trusted Publishing (OIDC)
 
     steps:
       - name: Checkout repository
@@ -38,6 +38,11 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      # Produces the .tgz on disk so the GitHub Release step can attach it.
+      # `npm publish` alone uploads to the registry but doesn't leave a tarball.
+      - name: Pack tarball
+        run: npm pack
 
       - name: Publish package
         run: npm publish --access public --provenance
