@@ -2,6 +2,12 @@
 
 All notable changes to `n8n-nodes-simplyprint` are documented here.
 
+## 0.2.0
+
+- Collapse 15 per-event trigger classes into a single `SimplyPrint Trigger` node with an Event dropdown. This matches the pattern used by first-party n8n integrations (HubSpot, Slack, Stripe) and makes the triggers appear correctly under the SimplyPrint integration card in the Node Creator (previously every event rendered as its own standalone card and the integration overview showed "No SimplyPrint Triggers available").
+- Default both credentials' `Panel URL` to `https://simplyprint.io` (production) instead of the staging host.
+- Drop the internal `install-on-home-server.sh` dev-loop script from the repo.
+
 ## 0.1.0 - Initial release
 
 - Dual authentication (OAuth2 or API key) via a per-node authentication selector

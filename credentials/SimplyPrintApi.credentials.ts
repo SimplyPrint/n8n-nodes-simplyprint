@@ -22,9 +22,9 @@ export class SimplyPrintApi implements ICredentialType {
 			displayName: 'Panel URL',
 			name: 'panelUrl',
 			type: 'string',
-			default: 'https://test.simplyprint.io',
+			default: 'https://simplyprint.io',
 			description:
-				'SimplyPrint panel base URL. Use https://simplyprint.io for production or https://test.simplyprint.io for staging.',
+				'SimplyPrint panel base URL. Leave as https://simplyprint.io for production; SimplyPrint staff can override for staging.',
 		},
 		{
 			displayName: 'API Key',

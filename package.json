@@ -1,6 +1,6 @@
 {
   "name": "@simplyprint/n8n-nodes-simplyprint",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "n8n community node for SimplyPrint - monitor 3D printer fleets, manage queues, automate print jobs.",
   "keywords": [
     "n8n-community-node-package",
@@ -40,21 +40,7 @@
     ],
     "nodes": [
       "dist/nodes/SimplyPrint/SimplyPrint.node.js",
-      "dist/nodes/SimplyPrintPrintStartedTrigger/SimplyPrintPrintStartedTrigger.node.js",
-      "dist/nodes/SimplyPrintPrintPausedTrigger/SimplyPrintPrintPausedTrigger.node.js",
-      "dist/nodes/SimplyPrintPrintResumedTrigger/SimplyPrintPrintResumedTrigger.node.js",
-      "dist/nodes/SimplyPrintPrintFinishedTrigger/SimplyPrintPrintFinishedTrigger.node.js",
-      "dist/nodes/SimplyPrintPrintFailedTrigger/SimplyPrintPrintFailedTrigger.node.js",
-      "dist/nodes/SimplyPrintPrintCancelledTrigger/SimplyPrintPrintCancelledTrigger.node.js",
-      "dist/nodes/SimplyPrintQueueItemAddedTrigger/SimplyPrintQueueItemAddedTrigger.node.js",
-      "dist/nodes/SimplyPrintQueueItemApprovedTrigger/SimplyPrintQueueItemApprovedTrigger.node.js",
-      "dist/nodes/SimplyPrintQueueItemDeniedTrigger/SimplyPrintQueueItemDeniedTrigger.node.js",
-      "dist/nodes/SimplyPrintQueueItemPendingApprovalTrigger/SimplyPrintQueueItemPendingApprovalTrigger.node.js",
-      "dist/nodes/SimplyPrintFilamentAssignedTrigger/SimplyPrintFilamentAssignedTrigger.node.js",
-      "dist/nodes/SimplyPrintFilamentUnassignedTrigger/SimplyPrintFilamentUnassignedTrigger.node.js",
-      "dist/nodes/SimplyPrintAiFailureDetectedTrigger/SimplyPrintAiFailureDetectedTrigger.node.js",
-      "dist/nodes/SimplyPrintMaintenanceJobOverdueTrigger/SimplyPrintMaintenanceJobOverdueTrigger.node.js",
-      "dist/nodes/SimplyPrintMaintenanceProblemReportedTrigger/SimplyPrintMaintenanceProblemReportedTrigger.node.js"
+      "dist/nodes/SimplyPrintTrigger/SimplyPrintTrigger.node.js"
     ]
   },
   "devDependencies": {
