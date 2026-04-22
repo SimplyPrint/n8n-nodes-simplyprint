@@ -26,6 +26,12 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           cache: npm
 
+      # npm 11.5.1+ is required for Trusted Publishing (OIDC) as a publisher.
+      # Node 22 ships with npm 10.9.x which signs provenance but then falls
+      # back to token auth for the actual PUT — 404s against a scoped package.
+      - name: Upgrade npm to a Trusted-Publishing-capable version
+        run: npm install --global npm@latest
+
       - run: npm ci --ignore-scripts
 
       - run: npm run lint
