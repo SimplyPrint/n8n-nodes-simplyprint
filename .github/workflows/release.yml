@@ -41,10 +41,11 @@ jobs:
             exit 1
           fi
 
+      # Uses npm Trusted Publishing (OIDC) - no NPM_TOKEN needed.
+      # Requires a Trusted Publisher configured on npmjs.com pointing at
+      # this repo + workflow + job name. See release-checklist in README.
       - name: Publish to npm
         run: npm publish --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
