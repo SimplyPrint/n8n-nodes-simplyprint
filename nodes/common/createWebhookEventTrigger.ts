@@ -6,7 +6,6 @@ import type {
 	IWebhookFunctions,
 	IWebhookResponseData,
 } from 'n8n-workflow';
-import { NodeConnectionType } from 'n8n-workflow';
 
 import { simplyprintCall } from '../SimplyPrint/common/client';
 import {
@@ -31,8 +30,8 @@ interface FactoryOptions<Payload extends object> {
 }
 
 interface StoredWebhook extends IDataObject {
-	webhookId: number;
-	secret: string;
+	webhookId?: number;
+	secret?: string;
 }
 
 /**
@@ -56,7 +55,7 @@ export function createWebhookEventTriggerNode<Payload extends object>(
 			description: opts.description,
 			defaults: { name: opts.displayName },
 			inputs: [],
-			outputs: [NodeConnectionType.Main],
+			outputs: ['main'],
 			credentials: SIMPLYPRINT_CREDENTIALS,
 			webhooks: [
 				{

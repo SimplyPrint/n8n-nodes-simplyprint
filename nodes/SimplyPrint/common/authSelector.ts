@@ -7,7 +7,7 @@ import type { INodeProperties, INodePropertyOptions } from 'n8n-workflow';
  */
 export const AUTHENTICATION_OPTIONS: INodePropertyOptions[] = [
 	{
-		name: 'OAuth2 (recommended)',
+		name: 'OAuth2 (Recommended)',
 		value: 'oAuth2',
 	},
 	{

@@ -6,8 +6,6 @@ import type {
 	INodeType,
 	INodeTypeDescription,
 } from 'n8n-workflow';
-import { NodeConnectionType } from 'n8n-workflow';
-
 import { simplyprintCall } from './common/client';
 import { authenticationProperty, SIMPLYPRINT_CREDENTIALS } from './common/authSelector';
 import { allProperties } from './descriptions';
@@ -31,8 +29,8 @@ export class SimplyPrint implements INodeType {
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
 		description: 'Monitor and control SimplyPrint print farms - printers, queue, files, filament',
 		defaults: { name: 'SimplyPrint' },
-		inputs: [NodeConnectionType.Main],
-		outputs: [NodeConnectionType.Main],
+		inputs: ['main'],
+		outputs: ['main'],
 		credentials: SIMPLYPRINT_CREDENTIALS,
 		properties: [authenticationProperty, ...allProperties],
 	};

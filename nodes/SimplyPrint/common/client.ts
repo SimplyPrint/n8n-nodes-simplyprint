@@ -6,6 +6,7 @@ import type {
 	IDataObject,
 	IHttpRequestMethods,
 	IHttpRequestOptions,
+	JsonObject,
 } from 'n8n-workflow';
 import { NodeApiError } from 'n8n-workflow';
 
@@ -147,7 +148,7 @@ export async function simplyprintCall<T = unknown>(
 			requestOptions,
 		);
 	} catch (error) {
-		throw new NodeApiError(ctx.getNode(), error as IDataObject);
+		throw new NodeApiError(ctx.getNode(), error as JsonObject);
 	}
 
 	const body = response as SimplyprintResponse<T>;

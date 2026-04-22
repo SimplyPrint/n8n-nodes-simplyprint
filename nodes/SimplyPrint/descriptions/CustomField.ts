@@ -19,9 +19,10 @@ export const customFieldOperations: INodeProperties[] = [
 
 export const customFieldFields: INodeProperties[] = [
 	{
-		displayName: 'Custom Field',
+		displayName: 'Custom Field Name or ID',
 		name: 'customFieldId',
 		type: 'options',
+		description: 'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
 		typeOptions: { loadOptionsMethod: 'loadCustomFields' },
 		required: true,
 		default: 0,

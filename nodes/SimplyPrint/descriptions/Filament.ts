@@ -21,18 +21,20 @@ export const filamentOperations: INodeProperties[] = [
 
 export const filamentFields: INodeProperties[] = [
 	{
-		displayName: 'Filament',
+		displayName: 'Filament Name or ID',
 		name: 'filamentId',
 		type: 'options',
+		description: 'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
 		typeOptions: { loadOptionsMethod: 'loadFilaments' },
 		required: true,
 		default: 0,
 		displayOptions: { show: { resource: ['filament'], operation: ['get', 'assign', 'unassign'] } },
 	},
 	{
-		displayName: 'Printer',
+		displayName: 'Printer Name or ID',
 		name: 'printerId',
 		type: 'options',
+		description: 'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
 		typeOptions: { loadOptionsMethod: 'loadPrinters' },
 		required: true,
 		default: 0,

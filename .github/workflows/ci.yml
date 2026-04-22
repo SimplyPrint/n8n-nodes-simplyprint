@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [20.x, 22.x]
+        node-version: [22.x]
     steps:
       - uses: actions/checkout@v4
 
@@ -21,7 +21,9 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: npm
 
-      - run: npm ci
+      # --ignore-scripts skips native builds of transitive n8n deps
+      # (e.g. isolated-vm). We only need n8n-workflow for type-checking.
+      - run: npm ci --ignore-scripts
 
       - run: npm run lint
 

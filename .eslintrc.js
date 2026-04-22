@@ -32,6 +32,11 @@ module.exports = {
 			files: ['./credentials/**/*.ts'],
 			plugins: ['eslint-plugin-n8n-nodes-base'],
 			extends: ['plugin:n8n-nodes-base/credentials'],
+			rules: {
+				// The rule treats https://... URLs as variable names and flags them
+				// as not-camelCase. Our documentationUrl is, correctly, a URL.
+				'n8n-nodes-base/cred-class-field-documentation-url-miscased': 'off',
+			},
 		},
 		{
 			files: ['./nodes/**/*.ts'],

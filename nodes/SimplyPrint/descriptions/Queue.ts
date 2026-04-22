@@ -10,17 +10,17 @@ export const queueOperations: INodeProperties[] = [
 		noDataExpression: true,
 		displayOptions: { show },
 		options: [
-			{ name: 'List Items', value: 'listItems', action: 'List queue items' },
-			{ name: 'List Groups', value: 'listGroups', action: 'List queue groups' },
 			{ name: 'Add File to Queue', value: 'addItem', action: 'Add a file to the queue' },
-			{ name: 'Update Item', value: 'updateItem', action: 'Update a queue item' },
+			{ name: 'Approve Item', value: 'approveItem', action: 'Approve a queue item' },
+			{ name: 'Deny Item', value: 'denyItem', action: 'Deny a queue item' },
+			{ name: 'Empty Queue', value: 'empty', action: 'Empty the queue or a queue group' },
+			{ name: 'List Groups', value: 'listGroups', action: 'List queue groups' },
+			{ name: 'List Items', value: 'listItems', action: 'List queue items' },
+			{ name: 'List Pending Approval', value: 'listPending', action: 'List items awaiting approval' },
 			{ name: 'Move Item', value: 'moveItem', action: 'Move a queue item to a new position' },
 			{ name: 'Remove Item', value: 'removeItem', action: 'Remove a queue item' },
 			{ name: 'Revive Item', value: 'reviveItem', action: 'Bring a done item back into the active queue' },
-			{ name: 'Empty Queue', value: 'empty', action: 'Empty the queue or a queue group' },
-			{ name: 'List Pending Approval', value: 'listPending', action: 'List items awaiting approval' },
-			{ name: 'Approve Item', value: 'approveItem', action: 'Approve a queue item' },
-			{ name: 'Deny Item', value: 'denyItem', action: 'Deny a queue item' },
+			{ name: 'Update Item', value: 'updateItem', action: 'Update a queue item' },
 		],
 		default: 'listItems',
 	},
@@ -29,12 +29,12 @@ export const queueOperations: INodeProperties[] = [
 export const queueFields: INodeProperties[] = [
 	// list / empty filters
 	{
-		displayName: 'Queue Group',
+		displayName: 'Queue Group Name or ID',
 		name: 'groupId',
 		type: 'options',
 		typeOptions: { loadOptionsMethod: 'loadQueueGroups' },
 		default: 0,
-		description: 'Leave blank for the default group',
+		description: 'Leave blank for the default group. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 		displayOptions: { show: { resource: ['queue'], operation: ['listItems', 'addItem', 'empty'] } },
 	},
 	{
@@ -46,9 +46,10 @@ export const queueFields: INodeProperties[] = [
 	},
 	// addItem
 	{
-		displayName: 'File',
+		displayName: 'File Name or ID',
 		name: 'fileId',
 		type: 'options',
+		description: 'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
 		typeOptions: { loadOptionsMethod: 'loadFiles' },
 		required: true,
 		default: 0,
@@ -75,9 +76,10 @@ export const queueFields: INodeProperties[] = [
 	},
 	// updateItem / moveItem / removeItem / reviveItem
 	{
-		displayName: 'Queue Item',
+		displayName: 'Queue Item Name or ID',
 		name: 'queueItemId',
 		type: 'options',
+		description: 'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
 		typeOptions: { loadOptionsMethod: 'loadQueueItems' },
 		required: true,
 		default: 0,

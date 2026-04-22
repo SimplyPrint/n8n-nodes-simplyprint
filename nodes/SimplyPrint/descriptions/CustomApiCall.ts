@@ -13,9 +13,8 @@ export const customApiCallOperations: INodeProperties[] = [
 			{
 				name: 'Custom API Call',
 				value: 'call',
-				action: 'Call any SimplyPrint API endpoint',
-				description:
-					'Escape hatch for endpoints this node does not wrap directly. Path is relative to the company (e.g. "printers/Get")',
+				action: 'Call any simply print api endpoint',
+				description: 'Escape hatch for endpoints this node does not wrap directly. Path is relative to the company (e.g. "printers/Get").',
 			},
 		],
 		default: 'call',
@@ -28,11 +27,11 @@ export const customApiCallFields: INodeProperties[] = [
 		name: 'method',
 		type: 'options',
 		options: [
+			{ name: 'DELETE', value: 'DELETE' },
 			{ name: 'GET', value: 'GET' },
+			{ name: 'PATCH', value: 'PATCH' },
 			{ name: 'POST', value: 'POST' },
 			{ name: 'PUT', value: 'PUT' },
-			{ name: 'PATCH', value: 'PATCH' },
-			{ name: 'DELETE', value: 'DELETE' },
 		],
 		default: 'GET',
 		displayOptions: { show },
