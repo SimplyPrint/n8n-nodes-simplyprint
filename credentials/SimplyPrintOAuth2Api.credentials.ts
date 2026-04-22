@@ -58,16 +58,21 @@ export class SimplyPrintOAuth2Api implements ICredentialType {
 			default: 'febe59df3f9668c56c6d4a96e53aaa508a0efe9e1e3d3955a4222bd58c555e7b',
 		},
 		{
+			// /oauth2/authorize (with the "2") routes to the Panel OAuth2Controller
+			// which reads the pre-registered `oauth_clients` table.
+			// /oauth/authorize (no "2") goes to the MCP Dynamic Client Registration
+			// flow, which is a different client registry entirely.
 			displayName: 'Authorization URL',
 			name: 'authUrl',
 			type: 'hidden',
-			default: '={{$self["panelUrl"]}}/oauth/authorize',
+			default: '={{$self["panelUrl"]}}/oauth2/authorize',
 		},
 		{
+			// Token exchange lives under the API, company-scopeless (0).
 			displayName: 'Access Token URL',
 			name: 'accessTokenUrl',
 			type: 'hidden',
-			default: '={{$self["panelUrl"]}}/oauth/token',
+			default: '={{$self["panelUrl"]}}/api/0/oauth2/Token',
 		},
 		{
 			displayName: 'Scope',
