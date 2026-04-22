@@ -14,7 +14,7 @@ Community node for [n8n](https://n8n.io) that connects to [SimplyPrint](https://
 
 1. In n8n, open **Settings -> Community Nodes**.
 2. Click **Install a community node**.
-3. Enter `n8n-nodes-simplyprint` and click **Install**.
+3. Enter `@simplyprint/n8n-nodes-simplyprint` and click **Install**.
 4. Restart n8n if prompted.
 
 Requires `N8N_COMMUNITY_PACKAGES_ENABLED=true` (default in recent n8n versions).
@@ -23,7 +23,7 @@ Requires `N8N_COMMUNITY_PACKAGES_ENABLED=true` (default in recent n8n versions).
 
 ```bash
 cd ~/.n8n
-npm install n8n-nodes-simplyprint
+npm install @simplyprint/n8n-nodes-simplyprint
 ```
 
 ## Use

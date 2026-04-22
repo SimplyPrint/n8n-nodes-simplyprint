@@ -2,7 +2,7 @@
 # Build n8n-nodes-simplyprint into a .tgz ready for side-loading onto a
 # running n8n instance. Must be run from a host with bun (or npm) installed.
 #
-# Output: ./n8n-nodes-simplyprint-<version>.tgz (at the repo root)
+# Output: ./simplyprint-n8n-nodes-simplyprint-<version>.tgz (at the repo root)
 #
 # ~90 seconds on first run (dependency install) + ~10 seconds for tsc on
 # subsequent runs.
@@ -28,7 +28,7 @@ npm run build
 echo "==> Packing .tgz..."
 npm pack
 
-TGZ="$(ls -t n8n-nodes-simplyprint-*.tgz | head -n 1)"
+TGZ="$(ls -t simplyprint-n8n-nodes-simplyprint-*.tgz | head -n 1)"
 echo ""
 echo "Done. Built: $ROOT/$TGZ"
 echo ""

@@ -35,7 +35,7 @@ echo "==> Copying .tgz into n8n container ($N8N_CONTAINER) and installing..."
 # shellcheck disable=SC2029
 ssh home-server "
     set -e
-    TGZ=\$(ls -t $N8N_DATA_DIR/n8n-nodes-simplyprint-*.tgz | head -n 1)
+    TGZ=\$(ls -t $N8N_DATA_DIR/simplyprint-n8n-nodes-simplyprint-*.tgz | head -n 1)
     echo 'Using .tgz:' \"\$TGZ\"
     docker cp \"\$TGZ\" $N8N_CONTAINER:/tmp/
     docker exec $N8N_CONTAINER npm install --prefix /home/node/.n8n /tmp/\$(basename \"\$TGZ\")
