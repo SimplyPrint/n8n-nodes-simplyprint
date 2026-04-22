@@ -13,7 +13,7 @@
   "homepage": "https://simplyprint.io/integrations/n8n",
   "repository": {
     "type": "git",
-    "url": "https://github.com/simplyprint/n8n-nodes-simplyprint.git"
+    "url": "https://github.com/simplyprint/n8n-nodes-simplyprint"
   },
   "author": {
     "name": "SimplyPrint",
