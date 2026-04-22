@@ -2,6 +2,10 @@
 
 All notable changes to `n8n-nodes-simplyprint` are documented here.
 
+## 0.3.3
+
+- Send OAuth scopes as comma-separated instead of space-separated. SP's `/api/0/oauth2/Authorize` uses a custom `comma_separated` validator on the scope param (non-standard; RFC 6749 specifies space-separated), which caused the whole scope string to be treated as a single invalid value and the authorize request was rejected as malformed.
+
 ## 0.3.2
 
 - Actual fix for the OAuth URL. The consent screen is at `/panel/oauth2/authorize` (the route is declared with a `Pattern()` helper in `panel-routes.php` that prepends `/panel` when not in OEM mode). 0.3.1 used `/oauth2/authorize` which 404'd.

@@ -74,11 +74,17 @@ export class SimplyPrintOAuth2Api implements ICredentialType {
 			default: '={{$self["panelUrl"]}}/api/0/oauth2/Token',
 		},
 		{
+			// SP's /api/0/oauth2/Authorize validator uses `comma_separated` on the
+			// scope param (see api/API/Endpoints/oauth2/Authorize.php L31) - it
+			// expects commas, not spaces. That's non-standard (RFC 6749 says
+			// space-separated), but n8n passes this string through as-is so we
+			// just ship commas. If SP's validation ever switches to spec-compliant
+			// space-separated, change back.
 			displayName: 'Scope',
 			name: 'scope',
 			type: 'hidden',
 			default:
-				'user.read printers.read printers.write printers.actions queue.read queue.write files.read files.write files.temp_upload spools.read spools.write print_history.read statistics.read custom_fields.read tags.read webhooks.read webhooks.write',
+				'user.read,printers.read,printers.write,printers.actions,queue.read,queue.write,files.read,files.write,files.temp_upload,spools.read,spools.write,print_history.read,statistics.read,custom_fields.read,tags.read,webhooks.read,webhooks.write',
 		},
 		{
 			displayName: 'Auth URI Query Parameters',
