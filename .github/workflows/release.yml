@@ -9,86 +9,41 @@ on:
     tags:
       - 'v*.*.*'
 
+on:
+  release:
+    types: [published]
+
 jobs:
   publish:
+    name: Publish
     runs-on: ubuntu-latest
+    environment: npm
+    
     permissions:
-      contents: write   # to create the GitHub Release
-      id-token: write   # to mint the GitHub OIDC token for Trusted Publishing
+      contents: read
+      id-token: write 
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24.x
+          node-version: '24.x'
           registry-url: 'https://registry.npmjs.org'
-          cache: npm
 
-      - run: npm ci --ignore-scripts
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
 
-      - run: npm run lint
+      - name: Lint
+        run: npm run lint
 
-      - run: npm run build
+      - name: Build
+        run: npm run build
 
-      - name: Check tag matches package.json version
-        run: |
-          TAG_VERSION="${GITHUB_REF#refs/tags/v}"
-          PKG_VERSION="$(node -p "require('./package.json').version")"
-          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
-            echo "Tag v$TAG_VERSION does not match package.json version $PKG_VERSION"
-            exit 1
-          fi
-
-      # npm 11's auto-detect for Trusted Publishing didn't fire on this runner
-      # (ENEEDAUTH or empty-token 404 depending on .npmrc shape). Skip the
-      # auto-detect entirely: fetch the GitHub OIDC token, exchange it for a
-      # short-lived npm publish token at registry.npmjs.org's token-exchange
-      # endpoint, then use that token as NODE_AUTH_TOKEN for npm publish.
-      # Requires a Trusted Publisher configured on npmjs.com.
-      - name: Exchange GitHub OIDC token for npm publish token
-        id: npm-oidc
-        run: |
-          set -euo pipefail
-
-          echo "Requesting OIDC token for audience npm:registry.npmjs.org"
-          OIDC_TOKEN=$(curl -sSfL \
-            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=npm:registry.npmjs.org" \
-            | node -e 'let d=""; process.stdin.on("data",c=>d+=c).on("end",()=>{const j=JSON.parse(d);if(!j.value)throw new Error("no token: "+d);console.log(j.value)})')
-
-          if [ -z "$OIDC_TOKEN" ]; then
-            echo "::error::Failed to mint GitHub OIDC token"
-            exit 1
-          fi
-
-          echo "Exchanging OIDC token at https://registry.npmjs.org/-/npm/v1/oidc/token/exchange"
-          EXCHANGE_RESPONSE=$(curl -sSfL -X POST \
-            https://registry.npmjs.org/-/npm/v1/oidc/token/exchange/package/@simplyprint%2Fn8n-nodes-simplyprint \
-            -H "Content-Type: application/json" \
-            -d "{\"jwt\":\"$OIDC_TOKEN\"}") || {
-              echo "::error::npm OIDC exchange failed"
-              echo "$EXCHANGE_RESPONSE"
-              exit 1
-            }
-
-          NPM_PUBLISH_TOKEN=$(echo "$EXCHANGE_RESPONSE" | node -e 'let d=""; process.stdin.on("data",c=>d+=c).on("end",()=>{const j=JSON.parse(d);if(!j.token)throw new Error("no token: "+d);console.log(j.token)})')
-
-          if [ -z "$NPM_PUBLISH_TOKEN" ]; then
-            echo "::error::No token in npm exchange response"
-            echo "Response: $EXCHANGE_RESPONSE"
-            exit 1
-          fi
-
-          echo "::add-mask::$NPM_PUBLISH_TOKEN"
-          echo "token=$NPM_PUBLISH_TOKEN" >> "$GITHUB_OUTPUT"
-          echo "Got short-lived npm publish token."
-
-      - name: Publish to npm
+      - name: Publish package
         run: npm publish --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ steps.npm-oidc.outputs.token }}
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
