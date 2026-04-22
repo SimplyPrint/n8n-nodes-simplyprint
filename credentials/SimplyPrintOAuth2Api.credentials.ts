@@ -3,17 +3,23 @@ import type { ICredentialType, INodeProperties } from 'n8n-workflow';
 /**
  * OAuth2 credential for SimplyPrint.
  *
- * We don't `extends: ['oAuth2Api']` because n8n's generic OAuth2 credential
- * hard-codes its property order and we want the scope list to be user-visible
- * but read-only. Instead we declare the full property set ourselves - the
- * `genericOAuth2ApiCredentialTest` logic in n8n discovers OAuth2-shaped
- * credentials via the presence of `accessTokenUrl` + `authUrl`.
+ * `extends: ['oAuth2Api']` pulls in n8n's standard OAuth2 form (client id,
+ * client secret, redirect URL). We override each of those fields with
+ * `type: 'hidden'` + a pre-baked default so the user sees zero form fields
+ * - just a "Connect" button - and connects against the shared SimplyPrint
+ * "n8n (managed)" OAuth client.
  *
- * Redirect URI shown to the user:
- *   https://<your-n8n>/rest/oauth2-credential/callback
+ * That OAuth client has `allow_any_redirect: true` on the SP backend,
+ * which means any n8n instance (cloud or self-hosted) can authenticate
+ * without its callback URL being pre-whitelisted. The SP consent screen
+ * shows a yellow "you're approving a third-party-hosted instance" warning
+ * with the redirect URL displayed and a mandatory "I trust this destination"
+ * checkbox for redirects SP hasn't seen before.
  *
- * That URL must be whitelisted in the SimplyPrint OAuth client
- * (Panel -> Admin -> OAuth clients).
+ * The `client_secret` shipped here is effectively public (anyone can
+ * `npm install` this package and extract it). That's an accepted tradeoff
+ * matching how Zapier / Make / Pipedream ship their integrations; the real
+ * security boundary is the SP consent screen's redirect URL warning.
  */
 export class SimplyPrintOAuth2Api implements ICredentialType {
 	name = 'simplyPrintOAuth2Api';
@@ -38,6 +44,18 @@ export class SimplyPrintOAuth2Api implements ICredentialType {
 			default: 'https://simplyprint.io',
 			description:
 				'SimplyPrint panel base URL. Leave as https://simplyprint.io for production; SimplyPrint staff can override for staging.',
+		},
+		{
+			displayName: 'Client ID',
+			name: 'clientId',
+			type: 'hidden',
+			default: 'n8n',
+		},
+		{
+			displayName: 'Client Secret',
+			name: 'clientSecret',
+			type: 'hidden',
+			default: 'febe59df3f9668c56c6d4a96e53aaa508a0efe9e1e3d3955a4222bd58c555e7b',
 		},
 		{
 			displayName: 'Authorization URL',
