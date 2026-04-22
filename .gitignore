@@ -3,3 +3,6 @@ dist
 *.tgz
 .turbo
 .DS_Store
+package.json.tmp.*
+CHANGELOG.md.tmp.*
+*.tmp.*
