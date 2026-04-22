@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write   # needed to create the GitHub Release
-      id-token: write   # for npm provenance
+      id-token: write   # for OIDC (npm Trusted Publishing + Sigstore provenance)
 
     steps:
       - uses: actions/checkout@v4
@@ -25,6 +25,22 @@ jobs:
           node-version: 24.x
           registry-url: 'https://registry.npmjs.org'
           cache: npm
+
+      # setup-node writes ~/.npmrc with `//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}`.
+      # When NODE_AUTH_TOKEN is unset, that line makes npm publish use an empty
+      # token instead of falling through to Trusted Publishing / OIDC. Remove
+      # it so npm 11+ sees "no configured auth" and triggers the OIDC exchange
+      # against the Trusted Publisher on registry.npmjs.org.
+      - name: Strip _authToken line so OIDC Trusted Publishing can fire
+        run: |
+          if [ -f "$HOME/.npmrc" ]; then
+            echo "--- .npmrc before ---"
+            cat "$HOME/.npmrc"
+            grep -v '_authToken' "$HOME/.npmrc" > "$HOME/.npmrc.clean" || true
+            mv "$HOME/.npmrc.clean" "$HOME/.npmrc"
+            echo "--- .npmrc after ---"
+            cat "$HOME/.npmrc"
+          fi
 
       - run: npm ci --ignore-scripts
 
@@ -41,15 +57,31 @@ jobs:
             exit 1
           fi
 
-      # Classic npm token auth. Trusted Publishing / OIDC did not fire
-      # reliably on this runner setup (npm 11 kept falling back to empty-
-      # token auth); switched to NPM_TOKEN as a pragmatic fallback.
-      # NPM_TOKEN is a Granular Access Token scoped to
-      # @simplyprint/n8n-nodes-simplyprint with Write access.
-      - name: Publish to npm
+      # One-time diagnostic so if this STILL 404s we can see exactly what npm
+      # is doing and what OIDC claims GitHub is minting. Delete this step once
+      # publishing works.
+      - name: Debug OIDC / npm state
+        run: |
+          echo "--- OIDC env vars present? ---"
+          env | grep -E '^(ACTIONS_ID_TOKEN|GITHUB_)' | sort
+          echo ""
+          echo "--- npm config (publish-relevant) ---"
+          npm config get registry
+          npm config get //registry.npmjs.org/:_authToken || echo "(no _authToken - good)"
+          echo ""
+          echo "--- OIDC token claims for audience npm:registry.npmjs.org ---"
+          TOKEN=$(curl -sSL \
+            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=npm:registry.npmjs.org" \
+            | node -e 'let d=""; process.stdin.on("data",c=>d+=c).on("end",()=>console.log(JSON.parse(d).value))')
+          if [ -n "$TOKEN" ]; then
+            echo "$TOKEN" | cut -d'.' -f2 | tr '_-' '/+' | base64 -d 2>/dev/null | node -e 'let d=""; process.stdin.on("data",c=>d+=c).on("end",()=>console.log(JSON.stringify(JSON.parse(d),null,2)))'
+          else
+            echo "Failed to mint OIDC token"
+          fi
+
+      - name: Publish to npm via Trusted Publishing (OIDC)
         run: npm publish --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

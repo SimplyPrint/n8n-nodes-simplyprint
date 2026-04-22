@@ -2,9 +2,13 @@
 
 All notable changes to `n8n-nodes-simplyprint` are documented here.
 
+## 0.2.5
+
+- Restore Trusted Publishing (OIDC) in the release workflow. Root cause of the earlier failures: `setup-node` with `registry-url` writes `~/.npmrc` with a line `//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}`. With no NPM_TOKEN set, that expands to an empty token, and npm uses empty-token auth instead of falling through to OIDC. Stripped that line after setup-node runs so npm 11 sees "no configured auth" and triggers the OIDC exchange. Added a one-shot diagnostic step that dumps OIDC claims so we can verify the exchange.
+
 ## 0.2.4
 
-- Fall back to classic NPM_TOKEN for publish auth. Trusted Publishing did not fire reliably on this runner setup (kept falling back to empty-token auth). OIDC can be revisited later.
+- (Never published.) Attempted NPM_TOKEN fallback, reverted before release.
 
 ## 0.2.3
 
