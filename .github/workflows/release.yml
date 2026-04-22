@@ -5,6 +5,7 @@ name: Release
 # The tag version must match package.json's "version" or npm publish will fail.
 
 on:
+  workflow_dispatch:
   push:
     tags:
       - 'v*.*.*'
