@@ -31,19 +31,25 @@ jobs:
       # NODE_AUTH_TOKEN is unset, that line makes npm publish use an empty
       # token instead of falling through to Trusted Publishing / OIDC. Strip
       # it so npm 11+ sees "no configured auth" and triggers the OIDC exchange.
-      - name: Strip _authToken line from setup-node's .npmrc
+      - name: Strip auth-blocking lines from setup-node's .npmrc
         run: |
           NPMRC="${NPM_CONFIG_USERCONFIG:-$HOME/.npmrc}"
           if [ -f "$NPMRC" ]; then
             echo "--- $NPMRC before ---"
             cat "$NPMRC"
-            grep -v '_authToken' "$NPMRC" > "$NPMRC.clean" || true
+            grep -vE '(_authToken|always-auth)' "$NPMRC" > "$NPMRC.clean" || true
             mv "$NPMRC.clean" "$NPMRC"
             echo "--- $NPMRC after ---"
             cat "$NPMRC"
           else
             echo "No .npmrc at $NPMRC"
           fi
+
+      # Bump npm to the current minor/patch. Node 24 ships npm 11.11 which
+      # has Trusted Publishing but may not auto-trigger OIDC reliably. On
+      # Node 24 the in-place upgrade works cleanly (unlike Node 22).
+      - name: Install latest npm (for Trusted Publishing improvements)
+        run: npm install --global npm@latest && npm --version
 
       - run: npm ci --ignore-scripts
 
