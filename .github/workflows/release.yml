@@ -19,18 +19,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Node 24 ships with npm 11.x, which is required for Trusted Publishing
+      # (OIDC) as a publisher. Node 22's bundled npm 10.9.x signs provenance
+      # but then silently falls back to token auth on the publish PUT, yielding
+      # an opaque 404 on scoped packages. Upgrading npm in-place on Node 22
+      # breaks npm itself (MODULE_NOT_FOUND: 'promise-retry'), so we just use
+      # a Node version that ships the right npm.
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22.x
+          node-version: 24.x
           registry-url: 'https://registry.npmjs.org'
           cache: npm
-
-      # npm 11.5.1+ is required for Trusted Publishing (OIDC) as a publisher.
-      # Node 22 ships with npm 10.9.x which signs provenance but then falls
-      # back to token auth for the actual PUT — 404s against a scoped package.
-      - name: Upgrade npm to a Trusted-Publishing-capable version
-        run: npm install --global npm@latest
 
       - run: npm ci --ignore-scripts
 
