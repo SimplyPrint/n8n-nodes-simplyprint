@@ -1,0 +1,26 @@
+{
+	"node": "n8n-nodes-base.simplyPrint",
+	"nodeVersion": "1.0",
+	"codexVersion": "1.0",
+	"categories": ["Manufacturing", "Utility"],
+	"resources": {
+		"credentialDocumentation": [
+			{
+				"url": "https://simplyprint.io/integrations/n8n"
+			}
+		],
+		"primaryDocumentation": [
+			{
+				"url": "https://help.simplyprint.io/en/article/n8n-integration"
+			}
+		],
+		"generic": [
+			{
+				"label": "SimplyPrint API reference",
+				"icon": "📘",
+				"url": "https://apidocs.simplyprint.io"
+			}
+		]
+	},
+	"alias": ["3D printing", "print farm", "SimplyPrint", "slicer", "printer", "queue"]
+}

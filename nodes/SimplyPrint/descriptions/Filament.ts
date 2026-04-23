@@ -10,34 +10,106 @@ export const filamentOperations: INodeProperties[] = [
 		noDataExpression: true,
 		displayOptions: { show },
 		options: [
-			{ name: 'List', value: 'list', action: 'List filaments' },
-			{ name: 'Get', value: 'get', action: 'Get a filament' },
-			{ name: 'Assign', value: 'assign', action: 'Assign a filament to a printer' },
-			{ name: 'Unassign', value: 'unassign', action: 'Unassign a filament from a printer' },
+			{
+				name: 'Assign',
+				value: 'assign',
+				action: 'Assign a filament to a printer',
+				description: 'Assign a filament spool to a printer',
+			},
+			{
+				name: 'Get',
+				value: 'get',
+				action: 'Get a filament',
+				description: 'Retrieve a filament',
+			},
+			{
+				name: 'Get Many',
+				value: 'getAll',
+				action: 'Get many filaments',
+				description: 'Retrieve a list of filaments',
+			},
+			{
+				name: 'Unassign',
+				value: 'unassign',
+				action: 'Unassign a filament from a printer',
+				description: 'Remove a filament spool from a printer',
+			},
 		],
-		default: 'list',
+		default: 'getAll',
 	},
 ];
 
 export const filamentFields: INodeProperties[] = [
 	{
-		displayName: 'Filament Name or ID',
+		displayName: 'Filament',
 		name: 'filamentId',
-		type: 'options',
-		description: 'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
-		typeOptions: { loadOptionsMethod: 'loadFilaments' },
+		type: 'resourceLocator',
+		default: { mode: 'list', value: '' },
 		required: true,
-		default: 0,
+		description: 'Filament to target',
 		displayOptions: { show: { resource: ['filament'], operation: ['get', 'assign', 'unassign'] } },
+		modes: [
+			{
+				displayName: 'From List',
+				name: 'list',
+				type: 'list',
+				placeholder: 'Select a filament...',
+				typeOptions: {
+					searchListMethod: 'searchFilaments',
+					searchable: true,
+				},
+			},
+			{
+				displayName: 'By ID',
+				name: 'id',
+				type: 'string',
+				placeholder: 'e.g. 17',
+				validation: [
+					{
+						type: 'regex',
+						properties: {
+							regex: '^[1-9][0-9]*$',
+							errorMessage: 'Filament ID must be a positive integer',
+						},
+					},
+				],
+			},
+		],
 	},
 	{
-		displayName: 'Printer Name or ID',
+		displayName: 'Printer',
 		name: 'printerId',
-		type: 'options',
-		description: 'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
-		typeOptions: { loadOptionsMethod: 'loadPrinters' },
+		type: 'resourceLocator',
+		default: { mode: 'list', value: '' },
 		required: true,
-		default: 0,
+		description: 'Printer to assign the filament to',
 		displayOptions: { show: { resource: ['filament'], operation: ['assign', 'unassign'] } },
+		modes: [
+			{
+				displayName: 'From List',
+				name: 'list',
+				type: 'list',
+				placeholder: 'Select a printer...',
+				typeOptions: {
+					searchListMethod: 'searchPrinters',
+					searchable: true,
+				},
+			},
+			{
+				displayName: 'By ID',
+				name: 'id',
+				type: 'string',
+				placeholder: 'e.g. 42',
+				validation: [
+					{
+						type: 'regex',
+						properties: {
+							regex: '^[1-9][0-9]*$',
+							errorMessage: 'Printer ID must be a positive integer',
+						},
+					},
+				],
+			},
+		],
 	},
 ];

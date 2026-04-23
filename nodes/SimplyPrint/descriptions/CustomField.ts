@@ -12,15 +12,21 @@ export const customFieldOperations: INodeProperties[] = [
 		noDataExpression: true,
 		displayOptions: { show },
 		options: [
-			{ name: 'List', value: 'list', action: 'List custom field definitions' },
+			{
+				name: 'Get Many',
+				value: 'getAll',
+				action: 'Get many custom field definitions',
+				description: 'Retrieve a list of custom-field definitions',
+			},
 			{
 				name: 'Submit Values',
 				value: 'setValues',
 				action: 'Submit custom field values for one or more entities',
-				description: 'Writes one or more custom-field values to a list of entities (queue items, files, print jobs, ...)',
+				description:
+					'Write one or more custom-field values to a list of entities (queue items, files, print jobs, ...)',
 			},
 		],
-		default: 'list',
+		default: 'getAll',
 	},
 ];
 
@@ -53,7 +59,9 @@ export const customFieldFields: INodeProperties[] = [
 			{ name: 'Print Queue Item', value: 'print_queue' },
 			{ name: 'User File', value: 'user_file' },
 		],
-		displayOptions: { show: { resource: ['customField'], operation: ['setValues'], category: ['print'] } },
+		displayOptions: {
+			show: { resource: ['customField'], operation: ['setValues'], category: ['print'] },
+		},
 	},
 	{
 		displayName: 'Entity IDs',
@@ -61,13 +69,13 @@ export const customFieldFields: INodeProperties[] = [
 		type: 'string',
 		default: '',
 		required: true,
-		placeholder: '123,456',
+		placeholder: 'e.g. 123,456',
 		description: 'Comma-separated IDs of the entities to update',
 		displayOptions: { show: { resource: ['customField'], operation: ['setValues'] } },
 	},
 	customFieldFixedCollection(
 		'Values',
-		'One row per field to set. Each row carries a field UUID, a type hint, and the value.',
+		'One row per field to set. Each row carries a field UUID, a type hint, and the value',
 		{ show: { resource: ['customField'], operation: ['setValues'] } },
 	),
 ];

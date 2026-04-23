@@ -42,7 +42,7 @@ export const customApiCallFields: INodeProperties[] = [
 		type: 'string',
 		default: '',
 		required: true,
-		placeholder: 'printers/Get',
+		placeholder: 'e.g. printers/Get',
 		description: 'Endpoint path relative to the company scope. Leading slash optional.',
 		displayOptions: { show },
 	},

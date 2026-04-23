@@ -1,6 +1,6 @@
 {
   "name": "@simplyprint/n8n-nodes-simplyprint",
-  "version": "0.3.4",
+  "version": "0.4.0-beta.1",
   "description": "n8n community node for SimplyPrint - monitor 3D printer fleets, manage queues, automate print jobs.",
   "keywords": [
     "n8n-community-node-package",
@@ -12,16 +12,23 @@
   "license": "MIT",
   "homepage": "https://simplyprint.io/integrations/n8n",
   "repository": {
-    "url": "https://github.com/SimplyPrint/n8n-nodes-simplyprint"
+    "type": "git",
+    "url": "git+https://github.com/SimplyPrint/n8n-nodes-simplyprint.git"
+  },
+  "bugs": {
+    "url": "https://github.com/SimplyPrint/n8n-nodes-simplyprint/issues"
   },
   "author": {
     "name": "SimplyPrint",
     "email": "contact@simplyprint.io",
     "url": "https://simplyprint.io"
   },
+  "engines": {
+    "node": ">=20.15"
+  },
   "main": "index.js",
   "scripts": {
-    "build": "tsc && gulp build:icons",
+    "build": "tsc && gulp build:assets",
     "dev": "tsc --watch",
     "format": "prettier nodes credentials --write",
     "lint": "eslint nodes credentials package.json",
@@ -45,17 +52,18 @@
     ]
   },
   "devDependencies": {
+    "@n8n/node-cli": "^0.23.0",
     "@types/node": "^20.12.7",
     "@typescript-eslint/parser": "~7.15.0",
     "eslint": "^8.57.0",
     "eslint-plugin-n8n-nodes-base": "^1.16.3",
     "gulp": "^4.0.2",
-    "n8n-workflow": "*",
+    "n8n-workflow": "^1.82.0",
     "prettier": "^3.3.2",
     "typescript": "~5.4.5",
     "vitest": "^1.6.1"
   },
   "peerDependencies": {
-    "n8n-workflow": "*"
+    "n8n-workflow": "^1.82.0"
   }
 }

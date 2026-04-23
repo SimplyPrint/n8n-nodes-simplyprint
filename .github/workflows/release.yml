@@ -44,12 +44,28 @@ jobs:
       - name: Pack tarball
         run: npm pack
 
+      # Prerelease versions (0.4.0-beta.1, 1.0.0-rc.2, ...) publish under the
+      # `beta` dist-tag so `npm install <pkg>` still serves the last stable.
+      - name: Determine dist-tag
+        id: distTag
+        shell: bash
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [[ "$version" == *-* ]]; then
+            echo "tag=beta" >> "$GITHUB_OUTPUT"
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=latest" >> "$GITHUB_OUTPUT"
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Publish package
-        run: npm publish --access public --provenance
+        run: npm publish --access public --provenance --tag ${{ steps.distTag.outputs.tag }}
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
+          prerelease: ${{ steps.distTag.outputs.prerelease == 'true' }}
           files: |
             *.tgz

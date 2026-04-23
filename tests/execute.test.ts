@@ -1,0 +1,165 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+import { SimplyPrint } from '../nodes/SimplyPrint/SimplyPrint.node';
+
+/**
+ * End-to-end tests for the action node's execute() method with a mocked
+ * IExecuteFunctions context. Covers:
+ *   - Printer > Get (resourceLocator id resolution + simplify)
+ *   - Printer > Get Many (simplify off, full passthrough)
+ *   - File > Delete (returns { deleted: true })
+ */
+
+interface MockedParams {
+	resource: string;
+	operation: string;
+	// Every other parameter the node reads, keyed by name.
+	[key: string]: unknown;
+}
+
+function mockExecuteContext(params: MockedParams, responder: (req: { url: string; body?: unknown; qs?: unknown }) => unknown) {
+	const httpRequestWithAuthentication = vi.fn(async (_cred: string, req: { url: string; body?: unknown; qs?: unknown }) =>
+		responder(req),
+	);
+
+	const ctx = {
+		getInputData: () => [{ json: {} }],
+		getNodeParameter: vi.fn((name: string, _i: number, fallback?: unknown, opts?: { extractValue?: boolean }) => {
+			if (name === 'authentication') return 'apiKey';
+			if (opts?.extractValue) {
+				const raw = params[name];
+				if (raw && typeof raw === 'object' && '__rl' in (raw as object)) {
+					return (raw as { value: unknown }).value;
+				}
+				return raw ?? fallback;
+			}
+			return params[name] ?? fallback;
+		}),
+		getCredentials: vi.fn(async () => ({ panelUrl: 'https://simplyprint.io', companyId: 77 })),
+		getNode: vi.fn(() => ({ name: 'SimplyPrint' })),
+		continueOnFail: vi.fn(() => false),
+		helpers: {
+			httpRequestWithAuthentication,
+			assertBinaryData: vi.fn(),
+			getBinaryDataBuffer: vi.fn(),
+		},
+	} as unknown;
+
+	return { ctx, httpRequestWithAuthentication };
+}
+
+describe('SimplyPrint.execute > printer', () => {
+	const node = new SimplyPrint();
+
+	beforeEach(() => vi.clearAllMocks());
+
+	it('printer.get with simplify=true returns the simplified shape', async () => {
+		const { ctx, httpRequestWithAuthentication } = mockExecuteContext(
+			{
+				resource: 'printer',
+				operation: 'get',
+				simplify: true,
+				printerId: { __rl: true, mode: 'id', value: '42' },
+			},
+			(req) => {
+				if (req.url.endsWith('/printers/Get')) {
+					return {
+						status: true,
+						objects: {
+							id: 42,
+							name: 'Voron 2.4',
+							model: 'Voron 2.4 300',
+							state: 'printing',
+							online: true,
+							job: { progress: 73.2, file_name: 'bracket.gcode', time_left: 900 },
+							mac: 'aa:bb:cc:dd:ee:ff',
+							ignored_field: 'noise',
+						},
+					};
+				}
+				return { status: true };
+			},
+		);
+		const out = await node.execute.call(ctx as never);
+		expect(Array.isArray(out)).toBe(true);
+		expect(out[0]).toHaveLength(1);
+		const json = out[0][0].json as Record<string, unknown>;
+		expect(json.id).toBe(42);
+		expect(json.progress).toBe(73.2);
+		expect(json.currentFile).toBe('bracket.gcode');
+		expect('mac' in json).toBe(false);
+		expect('ignored_field' in json).toBe(false);
+
+		// Make sure pid was passed as an actual numeric query param.
+		const printersCall = httpRequestWithAuthentication.mock.calls.find((c) =>
+			c[1].url.endsWith('/printers/Get'),
+		);
+		expect(printersCall?.[1].qs).toEqual({ pid: 42 });
+	});
+
+	it('printer.getAll with simplify=false returns raw rows', async () => {
+		const { ctx } = mockExecuteContext(
+			{ resource: 'printer', operation: 'getAll', simplify: false },
+			() => ({
+				status: true,
+				objects: [
+					{ id: 1, name: 'A', internal: true, debug: 'x' },
+					{ id: 2, name: 'B', internal: false, debug: 'y' },
+				],
+			}),
+		);
+		const out = await node.execute.call(ctx as never);
+		expect(out[0]).toHaveLength(2);
+		const first = out[0][0].json as Record<string, unknown>;
+		expect(first.internal).toBe(true);
+		expect(first.debug).toBe('x');
+	});
+});
+
+describe('SimplyPrint.execute > file.delete', () => {
+	const node = new SimplyPrint();
+
+	it('returns { deleted: true } and issues a Delete POST', async () => {
+		const { ctx, httpRequestWithAuthentication } = mockExecuteContext(
+			{
+				resource: 'file',
+				operation: 'delete',
+				fileId: { __rl: true, mode: 'id', value: '9128' },
+			},
+			(req) => {
+				if (req.url.endsWith('/files/Delete')) {
+					return { status: true };
+				}
+				return { status: true };
+			},
+		);
+		const out = await node.execute.call(ctx as never);
+		expect(out[0][0].json).toEqual({ deleted: true });
+		const delCall = httpRequestWithAuthentication.mock.calls.find((c) =>
+			c[1].url.endsWith('/files/Delete'),
+		);
+		expect(delCall?.[1].body).toEqual({ id: 9128 });
+	});
+});
+
+describe('SimplyPrint.execute > error path', () => {
+	const node = new SimplyPrint();
+
+	it('surfaces backend status=false as a NodeApiError', async () => {
+		const { ctx } = mockExecuteContext(
+			{ resource: 'printer', operation: 'getAll', simplify: true },
+			() => ({ status: false, message: 'bad credential' }),
+		);
+		await expect(node.execute.call(ctx as never)).rejects.toThrow(/bad credential/);
+	});
+
+	it('continues on fail when the context opts in', async () => {
+		const { ctx } = mockExecuteContext(
+			{ resource: 'printer', operation: 'getAll', simplify: true },
+			() => ({ status: false, message: 'bad credential' }),
+		);
+		(ctx as { continueOnFail: () => boolean }).continueOnFail = () => true;
+		const out = await node.execute.call(ctx as never);
+		expect(out[0][0].json).toMatchObject({ error: expect.stringContaining('bad credential') });
+	});
+});

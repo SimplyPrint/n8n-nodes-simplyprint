@@ -1,0 +1,26 @@
+{
+	"node": "n8n-nodes-base.simplyPrintTrigger",
+	"nodeVersion": "1.0",
+	"codexVersion": "1.0",
+	"categories": ["Manufacturing", "Utility"],
+	"resources": {
+		"credentialDocumentation": [
+			{
+				"url": "https://simplyprint.io/integrations/n8n"
+			}
+		],
+		"primaryDocumentation": [
+			{
+				"url": "https://help.simplyprint.io/en/article/n8n-integration#triggers"
+			}
+		],
+		"generic": [
+			{
+				"label": "SimplyPrint webhook events",
+				"icon": "📣",
+				"url": "https://apidocs.simplyprint.io/#webhooks"
+			}
+		]
+	},
+	"alias": ["3D printing", "webhook", "trigger", "SimplyPrint", "print event", "print finished"]
+}

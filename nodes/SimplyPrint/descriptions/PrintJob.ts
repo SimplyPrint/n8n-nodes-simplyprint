@@ -31,7 +31,7 @@ export const printJobFields: INodeProperties[] = [
 		type: 'string',
 		default: '',
 		required: true,
-		placeholder: '42,77',
+		placeholder: 'e.g. 42,77',
 		description: 'Comma-separated printer IDs. Use the Printer resource to look IDs up.',
 		displayOptions: { show: { resource: ['printJob'], operation: ['create'] } },
 	},
@@ -48,32 +48,75 @@ export const printJobFields: INodeProperties[] = [
 		displayOptions: { show: { resource: ['printJob'], operation: ['create'] } },
 	},
 	{
-		displayName: 'File Name or ID',
+		displayName: 'File',
 		name: 'fileId',
-		type: 'options',
-		typeOptions: { loadOptionsMethod: 'loadFiles' },
+		type: 'resourceLocator',
+		default: { mode: 'list', value: '' },
 		required: true,
-		default: 0,
-		description: 'Uploaded user file to print. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+		description: 'Uploaded user file to print',
 		displayOptions: {
 			show: { resource: ['printJob'], operation: ['create'], fileSource: ['userFile'] },
 		},
+		modes: [
+			{
+				displayName: 'From List',
+				name: 'list',
+				type: 'list',
+				placeholder: 'Select a file...',
+				typeOptions: {
+					searchListMethod: 'searchFiles',
+					searchable: true,
+				},
+			},
+			{
+				displayName: 'By ID',
+				name: 'id',
+				type: 'string',
+				placeholder: 'e.g. 9128',
+			},
+		],
 	},
 	{
-		displayName: 'Queue Item Name or ID',
+		displayName: 'Queue Item',
 		name: 'queueItemId',
-		type: 'options',
-		typeOptions: { loadOptionsMethod: 'loadQueueItems' },
+		type: 'resourceLocator',
+		default: { mode: 'list', value: '' },
 		required: true,
-		default: 0,
-		description: 'Queue item to print. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+		description: 'Queue item to print',
 		displayOptions: {
 			show: { resource: ['printJob'], operation: ['create'], fileSource: ['queueItem'] },
 		},
+		modes: [
+			{
+				displayName: 'From List',
+				name: 'list',
+				type: 'list',
+				placeholder: 'Select a queue item...',
+				typeOptions: {
+					searchListMethod: 'searchQueueItems',
+					searchable: true,
+				},
+			},
+			{
+				displayName: 'By ID',
+				name: 'id',
+				type: 'string',
+				placeholder: 'e.g. 8821',
+				validation: [
+					{
+						type: 'regex',
+						properties: {
+							regex: '^[1-9][0-9]*$',
+							errorMessage: 'Queue item ID must be a positive integer',
+						},
+					},
+				],
+			},
+		],
 	},
 	customFieldFixedCollection(
 		'Shared Custom Fields',
-		'PRINT_JOB custom-field values applied to every printer in this call. Category is inferred server-side.',
+		'PRINT_JOB custom-field values applied to every printer in this call. Category is inferred server-side',
 		{ show: { resource: ['printJob'], operation: ['create'] } },
 	),
 	{
@@ -81,7 +124,8 @@ export const printJobFields: INodeProperties[] = [
 		name: 'individualCustomFields',
 		type: 'json',
 		default: '[]',
-		description: 'Optional per-printer overrides. Each entry carries an ID (the target printer) and a value array of custom-field submissions. See the README for the exact shape.',
+		description:
+			'Optional per-printer overrides. Each entry carries an ID (the target printer) and a value array of custom-field submissions. See the README for the exact shape',
 		displayOptions: { show: { resource: ['printJob'], operation: ['create'] } },
 	},
 	buildStartOptionsField({ show: { resource: ['printJob'], operation: ['create'] } }),

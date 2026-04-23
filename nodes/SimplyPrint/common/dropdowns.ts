@@ -1,4 +1,9 @@
-import type { ILoadOptionsFunctions, INodePropertyOptions } from 'n8n-workflow';
+import type {
+	ILoadOptionsFunctions,
+	INodeListSearchItems,
+	INodeListSearchResult,
+	INodePropertyOptions,
+} from 'n8n-workflow';
 
 import { simplyprintCall } from './client';
 import type {
@@ -12,12 +17,21 @@ import type {
 } from './types';
 
 /**
- * loadOptions methods wired to the Action node under `methods.loadOptions`.
- * Each one returns the list of INodePropertyOptions the n8n UI displays in
- * a dropdown when the user picks "From list" on a property.
+ * loadOptions and listSearch wiring for the SimplyPrint action node.
  *
- * Mirrors activepieces/piece/src/lib/common/props.ts.
+ * `loadOptions` feeds plain `type: 'options'` dropdowns (queue groups, tags,
+ * custom fields).
+ *
+ * `listSearch` feeds `type: 'resourceLocator'` "From list" pickers for single-
+ * entity selection (printers, files, filaments, queue items). Both flows hit
+ * the same endpoints; `listSearch` wraps the result in the shape n8n expects
+ * (`{ results, paginationToken }`) and supports client-side filtering.
  */
+
+function matches(filter: string | undefined, text: string): boolean {
+	if (!filter) return true;
+	return text.toLowerCase().includes(filter.toLowerCase());
+}
 
 export async function loadPrinters(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 	const res = await simplyprintCall<{ data?: Printer[] }>(this, {
@@ -29,6 +43,24 @@ export async function loadPrinters(this: ILoadOptionsFunctions): Promise<INodePr
 		name: p.name + (p.model ? ` (${p.model})` : ''),
 		value: p.id,
 	}));
+}
+
+export async function searchPrinters(
+	this: ILoadOptionsFunctions,
+	filter?: string,
+): Promise<INodeListSearchResult> {
+	const res = await simplyprintCall<{ data?: Printer[] }>(this, {
+		method: 'GET',
+		path: 'printers/Get',
+	});
+	const printers = res.objects?.data ?? [];
+	const results: INodeListSearchItems[] = printers
+		.map((p) => ({
+			name: p.name + (p.model ? ` (${p.model})` : ''),
+			value: p.id,
+		}))
+		.filter((r) => matches(filter, r.name));
+	return { results };
 }
 
 export async function loadQueueGroups(
@@ -51,6 +83,21 @@ export async function loadFiles(this: ILoadOptionsFunctions): Promise<INodePrope
 	return files.map((f) => ({ name: f.name, value: f.id }));
 }
 
+export async function searchFiles(
+	this: ILoadOptionsFunctions,
+	filter?: string,
+): Promise<INodeListSearchResult> {
+	const res = await simplyprintCall<{ data?: PrintFile[] }>(this, {
+		method: 'GET',
+		path: 'files/Get',
+	});
+	const files = res.objects?.data ?? [];
+	const results: INodeListSearchItems[] = files
+		.map((f) => ({ name: f.name, value: f.id }))
+		.filter((r) => matches(filter, r.name));
+	return { results };
+}
+
 export async function loadQueueItems(
 	this: ILoadOptionsFunctions,
 ): Promise<INodePropertyOptions[]> {
@@ -65,6 +112,24 @@ export async function loadQueueItems(
 	}));
 }
 
+export async function searchQueueItems(
+	this: ILoadOptionsFunctions,
+	filter?: string,
+): Promise<INodeListSearchResult> {
+	const res = await simplyprintCall<{ data?: QueueItem[] }>(this, {
+		method: 'GET',
+		path: 'queue/Get',
+	});
+	const items = res.objects?.data ?? [];
+	const results: INodeListSearchItems[] = items
+		.map((i) => ({
+			name: i.file_name ?? `Queue item #${i.id}`,
+			value: i.id,
+		}))
+		.filter((r) => matches(filter, r.name));
+	return { results };
+}
+
 export async function loadFilaments(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 	const res = await simplyprintCall<{ data?: Filament[] }>(this, {
 		method: 'GET',
@@ -75,6 +140,24 @@ export async function loadFilaments(this: ILoadOptionsFunctions): Promise<INodeP
 		name: [f.brand, f.material, f.name].filter(Boolean).join(' ') || `Filament #${f.id}`,
 		value: f.id,
 	}));
+}
+
+export async function searchFilaments(
+	this: ILoadOptionsFunctions,
+	filter?: string,
+): Promise<INodeListSearchResult> {
+	const res = await simplyprintCall<{ data?: Filament[] }>(this, {
+		method: 'GET',
+		path: 'filament/Get',
+	});
+	const filaments = res.objects?.data ?? [];
+	const results: INodeListSearchItems[] = filaments
+		.map((f) => ({
+			name: [f.brand, f.material, f.name].filter(Boolean).join(' ') || `Filament #${f.id}`,
+			value: f.id,
+		}))
+		.filter((r) => matches(filter, r.name));
+	return { results };
 }
 
 export async function loadTags(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {

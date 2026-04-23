@@ -12,19 +12,44 @@ export const fileOperations: INodeProperties[] = [
 		noDataExpression: true,
 		displayOptions: { show },
 		options: [
-			{ name: 'Delete', value: 'delete', action: 'Delete a file' },
-			{ name: 'Get', value: 'get', action: 'Get a file' },
-			{ name: 'List', value: 'list', action: 'List files' },
-			{ name: 'Move', value: 'move', action: 'Move a file to another folder' },
-			{ name: 'Upload', value: 'upload', action: 'Upload a file' },
+			{
+				name: 'Delete',
+				value: 'delete',
+				action: 'Delete a file',
+				description: 'Delete a file permanently',
+			},
+			{
+				name: 'Get',
+				value: 'get',
+				action: 'Get a file',
+				description: 'Retrieve a file',
+			},
+			{
+				name: 'Get Many',
+				value: 'getAll',
+				action: 'Get many files',
+				description: 'Retrieve a list of files',
+			},
+			{
+				name: 'Move',
+				value: 'move',
+				action: 'Move a file to another folder',
+				description: 'Move a file to another folder',
+			},
+			{
+				name: 'Upload',
+				value: 'upload',
+				action: 'Upload a file',
+				description: 'Upload a binary file to SimplyPrint',
+			},
 			{
 				name: 'Upload and Queue',
 				value: 'uploadAndQueue',
 				action: 'Upload a file and add it to the queue',
-				description: 'Composite: uploads a file, adds it to the queue, and optionally starts a print',
+				description: 'Upload a file, add it to the queue, and optionally start a print',
 			},
 		],
-		default: 'list',
+		default: 'getAll',
 	},
 ];
 
@@ -34,20 +59,38 @@ export const fileFields: INodeProperties[] = [
 		name: 'folderId',
 		type: 'number',
 		default: 0,
+		placeholder: 'e.g. 31',
 		description: 'Zero (or blank) lists the account root',
 		displayOptions: {
-			show: { resource: ['file'], operation: ['list', 'upload', 'uploadAndQueue', 'move'] },
+			show: { resource: ['file'], operation: ['getAll', 'upload', 'uploadAndQueue', 'move'] },
 		},
 	},
 	{
-		displayName: 'File Name or ID',
+		displayName: 'File',
 		name: 'fileId',
-		type: 'options',
-		description: 'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
-		typeOptions: { loadOptionsMethod: 'loadFiles' },
+		type: 'resourceLocator',
+		default: { mode: 'list', value: '' },
 		required: true,
-		default: 0,
+		description: 'File to target',
 		displayOptions: { show: { resource: ['file'], operation: ['get', 'move', 'delete'] } },
+		modes: [
+			{
+				displayName: 'From List',
+				name: 'list',
+				type: 'list',
+				placeholder: 'Select a file...',
+				typeOptions: {
+					searchListMethod: 'searchFiles',
+					searchable: true,
+				},
+			},
+			{
+				displayName: 'By ID',
+				name: 'id',
+				type: 'string',
+				placeholder: 'e.g. 9128',
+			},
+		],
 	},
 	{
 		displayName: 'Binary Property',
@@ -55,11 +98,10 @@ export const fileFields: INodeProperties[] = [
 		type: 'string',
 		default: 'data',
 		required: true,
+		placeholder: 'e.g. data',
 		description: 'Name of the binary input on the incoming item that holds the file to upload',
 		displayOptions: { show: { resource: ['file'], operation: ['upload', 'uploadAndQueue'] } },
 	},
-	// uploadAndQueue only — queue group id for the print queue step.
-	// (file.upload targets files.simplyprint.io which does not need a group.)
 	{
 		displayName: 'Queue Group Name or ID',
 		name: 'queueGroupId',
@@ -67,7 +109,8 @@ export const fileFields: INodeProperties[] = [
 		typeOptions: { loadOptionsMethod: 'loadQueueGroups' },
 		default: 0,
 		required: true,
-		description: 'Required. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+		description:
+			'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
 		displayOptions: { show: { resource: ['file'], operation: ['uploadAndQueue'] } },
 	},
 	{
@@ -109,6 +152,7 @@ export const fileFields: INodeProperties[] = [
 						type: 'string',
 						default: '',
 						required: true,
+						placeholder: 'e.g. 7b2c4e3a-9f17-4a23-8c64-9f9e2b1cdfe4',
 						description: 'Field UUID (the string fieldId, not the numeric ID)',
 					},
 					{
@@ -141,8 +185,8 @@ export const fileFields: INodeProperties[] = [
 		name: 'startOnPrinterIds',
 		type: 'string',
 		default: '',
-		placeholder: '42,77',
-		description: 'Optional. Comma-separated printer IDs. When set, a print is started on each listed printer right after queuing.',
+		placeholder: 'e.g. 42,77',
+		description: 'Comma-separated printer IDs. When set, a print is started on each listed printer right after queuing.',
 		displayOptions: { show: { resource: ['file'], operation: ['uploadAndQueue'] } },
 	},
 	{
@@ -165,6 +209,7 @@ export const fileFields: INodeProperties[] = [
 						type: 'string',
 						default: '',
 						required: true,
+						placeholder: 'e.g. 7b2c4e3a-9f17-4a23-8c64-9f9e2b1cdfe4',
 						description: 'Field UUID (the string fieldId, not the numeric ID)',
 					},
 					{
