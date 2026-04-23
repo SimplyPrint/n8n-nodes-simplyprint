@@ -1,5 +1,7 @@
 import type { INodeProperties } from 'n8n-workflow';
 
+import { customFieldFixedCollection } from '../common/customFields';
+
 const show = { resource: ['queue'] };
 
 export const queueOperations: INodeProperties[] = [
@@ -125,4 +127,10 @@ export const queueFields: INodeProperties[] = [
 		default: '',
 		displayOptions: { show: { resource: ['queue'], operation: ['approveItem', 'denyItem'] } },
 	},
+	// addItem custom fields
+	customFieldFixedCollection(
+		'Custom Fields',
+		'PRINT_QUEUE custom-field values to attach to the new queue item. Category is inferred server-side.',
+		{ show: { resource: ['queue'], operation: ['addItem'] } },
+	),
 ];

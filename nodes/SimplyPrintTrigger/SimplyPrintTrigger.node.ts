@@ -131,7 +131,8 @@ export class SimplyPrintTrigger implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'SimplyPrint Trigger',
 		name: 'simplyPrintTrigger',
-		icon: 'file:simplyprint.svg',
+		// eslint-disable-next-line n8n-nodes-base/node-class-description-icon-not-svg -- PNG with rounded white background renders correctly in both light and dark mode; brand asset is raster only
+		icon: 'file:simplyprint.png',
 		group: ['trigger'],
 		version: 1,
 		subtitle: '={{$parameter["event"]}}',

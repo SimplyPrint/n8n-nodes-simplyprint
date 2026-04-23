@@ -1,5 +1,7 @@
 import type { INodeProperties } from 'n8n-workflow';
 
+import { customFieldFixedCollection } from '../common/customFields';
+
 const show = { resource: ['customField'] };
 
 export const customFieldOperations: INodeProperties[] = [
@@ -11,7 +13,12 @@ export const customFieldOperations: INodeProperties[] = [
 		displayOptions: { show },
 		options: [
 			{ name: 'List', value: 'list', action: 'List custom field definitions' },
-			{ name: 'Set Values', value: 'setValues', action: 'Set a custom field value across items' },
+			{
+				name: 'Submit Values',
+				value: 'setValues',
+				action: 'Submit custom field values for one or more entities',
+				description: 'Writes one or more custom-field values to a list of entities (queue items, files, print jobs, ...)',
+			},
 		],
 		default: 'list',
 	},
@@ -19,28 +26,34 @@ export const customFieldOperations: INodeProperties[] = [
 
 export const customFieldFields: INodeProperties[] = [
 	{
-		displayName: 'Custom Field Name or ID',
-		name: 'customFieldId',
+		displayName: 'Category',
+		name: 'category',
 		type: 'options',
-		description: 'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
-		typeOptions: { loadOptionsMethod: 'loadCustomFields' },
+		default: 'print',
 		required: true,
-		default: 0,
+		description: 'Entity category the custom field belongs to',
+		options: [
+			{ name: 'Filament', value: 'filament' },
+			{ name: 'Print (Queue / Job / File)', value: 'print' },
+			{ name: 'Printer', value: 'printer' },
+			{ name: 'User', value: 'user' },
+			{ name: 'User File', value: 'user_file' },
+		],
 		displayOptions: { show: { resource: ['customField'], operation: ['setValues'] } },
 	},
 	{
-		displayName: 'Entity',
-		name: 'entity',
+		displayName: 'Sub-Category',
+		name: 'subCategory',
 		type: 'options',
+		default: '',
+		description: 'Only applies to the "print" category. Pick which print-related entity to target.',
 		options: [
-			{ name: 'Print Job', value: 'print' },
-			{ name: 'Queue Item', value: 'queue_item' },
-			{ name: 'File', value: 'file' },
-			{ name: 'Printer', value: 'printer' },
+			{ name: 'None (Use for Non-Print Categories)', value: '' },
+			{ name: 'Print Job', value: 'print_job' },
+			{ name: 'Print Queue Item', value: 'print_queue' },
+			{ name: 'User File', value: 'user_file' },
 		],
-		default: 'print',
-		required: true,
-		displayOptions: { show: { resource: ['customField'], operation: ['setValues'] } },
+		displayOptions: { show: { resource: ['customField'], operation: ['setValues'], category: ['print'] } },
 	},
 	{
 		displayName: 'Entity IDs',
@@ -52,12 +65,9 @@ export const customFieldFields: INodeProperties[] = [
 		description: 'Comma-separated IDs of the entities to update',
 		displayOptions: { show: { resource: ['customField'], operation: ['setValues'] } },
 	},
-	{
-		displayName: 'Value',
-		name: 'value',
-		type: 'string',
-		default: '',
-		description: 'New value to store for this field on every listed entity',
-		displayOptions: { show: { resource: ['customField'], operation: ['setValues'] } },
-	},
+	customFieldFixedCollection(
+		'Values',
+		'One row per field to set. Each row carries a field UUID, a type hint, and the value.',
+		{ show: { resource: ['customField'], operation: ['setValues'] } },
+	),
 ];

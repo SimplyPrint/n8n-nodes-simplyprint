@@ -89,13 +89,20 @@ export async function loadTags(this: ILoadOptionsFunctions): Promise<INodeProper
 export async function loadCustomFields(
 	this: ILoadOptionsFunctions,
 ): Promise<INodePropertyOptions[]> {
-	const res = await simplyprintCall<{ data?: CustomField[] }>(this, {
-		method: 'GET',
-		path: 'custom_fields/Get',
-	});
-	const fields = res.objects?.data ?? [];
-	return fields.map((f) => ({
-		name: `${f.name} (${f.field_type})`,
-		value: f.id,
-	}));
+	// custom_fields/Get has oauth_disabled=true server-side, so OAuth callers
+	// get a 403. Degrade silently so the UI doesn't explode: returning [] is
+	// enough for n8n to render "no options" without breaking the node.
+	try {
+		const res = await simplyprintCall<{ data?: CustomField[] }>(this, {
+			method: 'GET',
+			path: 'custom_fields/Get',
+		});
+		const fields = res.objects?.data ?? [];
+		return fields.map((f) => ({
+			name: `${f.name} (${f.field_type})`,
+			value: f.id,
+		}));
+	} catch {
+		return [];
+	}
 }

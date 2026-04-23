@@ -6,6 +6,7 @@ import type {
 	INodeType,
 	INodeTypeDescription,
 } from 'n8n-workflow';
+import { NodeOperationError } from 'n8n-workflow';
 import { simplyprintCall } from './common/client';
 import { authenticationProperty, SIMPLYPRINT_CREDENTIALS } from './common/authSelector';
 import { allProperties } from './descriptions';
@@ -18,12 +19,15 @@ import {
 	loadTags,
 	loadCustomFields,
 } from './common/dropdowns';
+import { toSubmissionArray } from './common/customFields';
+import { normalizeStartOptions } from './common/startOptions';
 
 export class SimplyPrint implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'SimplyPrint',
 		name: 'simplyPrint',
-		icon: 'file:simplyprint.svg',
+		// eslint-disable-next-line n8n-nodes-base/node-class-description-icon-not-svg -- PNG with rounded white background renders correctly in both light and dark mode; brand asset is raster only
+		icon: 'file:simplyprint.png',
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
@@ -112,8 +116,11 @@ export class SimplyPrint implements INodeType {
 						const groupId = this.getNodeParameter('groupId', i, 0) as number;
 						const amount = this.getNodeParameter('amount', i, 1) as number;
 						const position = this.getNodeParameter('position', i, 'bottom') as string;
+						const customFieldsRaw = this.getNodeParameter('customFields', i, {}) as IDataObject;
+						const customFields = toSubmissionArray(customFieldsRaw);
 						const body: IDataObject = { file_id: fileId, amount, position };
 						if (groupId) body.group_id = groupId;
+						if (customFields.length > 0) body.custom_fields = customFields;
 						const res = await simplyprintCall(this, { method: 'POST', path: 'queue/AddItem', body });
 						result = res;
 					} else if (operation === 'updateItem') {
@@ -206,8 +213,10 @@ export class SimplyPrint implements INodeType {
 						});
 						result = res.objects ?? res;
 					} else if (operation === 'upload') {
+						// Upload via files.simplyprint.io (the integration-reachable
+						// file upload service). Returns a string hex file id usable as
+						// `fileId` on queue/AddItem or `file_id` on CreateJob.
 						const binaryPropertyName = this.getNodeParameter('binaryPropertyName', i, 'data') as string;
-						const folderId = this.getNodeParameter('folderId', i, 0) as number;
 						const binaryData = this.helpers.assertBinaryData(i, binaryPropertyName);
 						const buffer = await this.helpers.getBinaryDataBuffer(i, binaryPropertyName);
 						const formData: IDataObject = {
@@ -219,13 +228,136 @@ export class SimplyPrint implements INodeType {
 								},
 							},
 						};
-						if (folderId) formData.folder_id = folderId;
-						const res = await simplyprintCall(this, {
+						const res = await simplyprintCall<{ file?: { id?: string; name?: string; size?: number; expires_at?: string } }>(this, {
 							method: 'POST',
 							path: 'files/Upload',
 							formData,
+							baseUrlOverride: 'https://files.simplyprint.io',
 						});
-						result = res;
+						const file = (res as IDataObject).file as IDataObject | undefined;
+						const fileId = String(file?.id ?? '');
+						if (!fileId) {
+							throw new NodeOperationError(
+								this.getNode(),
+								'files/Upload did not return a file id',
+								{ itemIndex: i },
+							);
+						}
+						result = {
+							fileId,
+							name: file?.name,
+							size: file?.size,
+							expires_at: file?.expires_at,
+							raw: res,
+						};
+					} else if (operation === 'uploadAndQueue') {
+						// Upload via files.simplyprint.io, add to queue with the returned
+						// hex file id as `fileId`, then optionally start a CreateJob
+						// using the resulting queue_file (or file_id if queue creation
+						// did not return an id for some reason).
+						const binaryPropertyName = this.getNodeParameter('binaryPropertyName', i, 'data') as string;
+						const queueGroupId = this.getNodeParameter('queueGroupId', i, 0) as number;
+						const amount = this.getNodeParameter('amount', i, 1) as number;
+						const position = this.getNodeParameter('position', i, 'bottom') as string;
+						const queueCustomFieldsRaw = this.getNodeParameter('queueCustomFields', i, {}) as IDataObject;
+						const queueCustomFields = toSubmissionArray(queueCustomFieldsRaw);
+						const printCustomFieldsRaw = this.getNodeParameter('printCustomFields', i, {}) as IDataObject;
+						const printCustomFields = toSubmissionArray(printCustomFieldsRaw);
+						const startOnPrinterIdsRaw = this.getNodeParameter('startOnPrinterIds', i, '') as string;
+						const startPrinterIds = startOnPrinterIdsRaw
+							.split(',')
+							.map((s) => Number(s.trim()))
+							.filter((n) => Number.isFinite(n) && n > 0);
+						const startOptionsRaw = this.getNodeParameter('startOptions', i, '{}') as IDataObject | string;
+						const startOptions = normalizeStartOptions(startOptionsRaw);
+
+						if (!queueGroupId || queueGroupId <= 0) {
+							throw new NodeOperationError(
+								this.getNode(),
+								'file.uploadAndQueue requires a Queue Group ID.',
+								{ itemIndex: i },
+							);
+						}
+
+						const binaryData = this.helpers.assertBinaryData(i, binaryPropertyName);
+						const buffer = await this.helpers.getBinaryDataBuffer(i, binaryPropertyName);
+
+						// Step 1: upload to files.simplyprint.io.
+						const uploadRes = await simplyprintCall<{ file?: { id?: string } }>(this, {
+							method: 'POST',
+							path: 'files/Upload',
+							formData: {
+								file: {
+									value: buffer,
+									options: {
+										filename: binaryData.fileName ?? 'upload',
+										contentType: binaryData.mimeType,
+									},
+								},
+							},
+							baseUrlOverride: 'https://files.simplyprint.io',
+						});
+						const uploadedFileId = String((uploadRes as IDataObject).file
+							? ((uploadRes as IDataObject).file as IDataObject).id ?? ''
+							: '');
+						if (!uploadedFileId) {
+							throw new NodeOperationError(
+								this.getNode(),
+								'files/Upload did not return a file id',
+								{ itemIndex: i },
+							);
+						}
+
+						// Step 2: add to queue using the API file id.
+						const addBody: IDataObject = {
+							fileId: uploadedFileId,
+							group: queueGroupId,
+							amount,
+							position,
+						};
+						if (queueCustomFields.length > 0) addBody.custom_fields = queueCustomFields as unknown as IDataObject[];
+						const addRes = await simplyprintCall<{ created_id?: number; id?: number }>(this, {
+							method: 'POST',
+							path: 'queue/AddItem',
+							body: addBody,
+						});
+						const queueItemRaw = (addRes ?? {}) as IDataObject;
+						const queueObjects = (queueItemRaw.objects ?? {}) as IDataObject;
+						const queueItemId = Number(
+							queueItemRaw.created_id
+								?? queueObjects.created_id
+								?? queueObjects.id
+								?? 0,
+						);
+
+						// Step 3 (optional): start print on printers.
+						let startRes: unknown = null;
+						if (startPrinterIds.length > 0) {
+							const jobBody: IDataObject = {};
+							if (queueItemId > 0) {
+								jobBody.queue_file = queueItemId;
+							} else {
+								jobBody.file_id = uploadedFileId;
+							}
+							if (printCustomFields.length > 0) {
+								jobBody.custom_fields = printCustomFields as unknown as IDataObject[];
+							}
+							if (startOptions) jobBody.start_options = startOptions;
+							startRes = await simplyprintCall(this, {
+								method: 'POST',
+								path: 'printers/actions/CreateJob',
+								qs: { pid: startPrinterIds.join(',') },
+								body: jobBody,
+							});
+						}
+
+						result = {
+							fileId: uploadedFileId,
+							queueItemId: queueItemId || null,
+							jobs: startRes,
+							queue: addRes,
+							upload: uploadRes,
+						};
 					} else if (operation === 'move') {
 						const fileId = this.getNodeParameter('fileId', i) as number;
 						const folderId = this.getNodeParameter('folderId', i, 0) as number;
@@ -310,17 +442,137 @@ export class SimplyPrint implements INodeType {
 						});
 						result = res.objects ?? res;
 					} else if (operation === 'setValues') {
-						const customFieldId = this.getNodeParameter('customFieldId', i) as number;
-						const entity = this.getNodeParameter('entity', i) as string;
+						const category = this.getNodeParameter('category', i, 'print') as string;
+						const subCategory = this.getNodeParameter('subCategory', i, '') as string;
 						const entityIds = String(this.getNodeParameter('entityIds', i) as string)
 							.split(',')
 							.map((s) => Number(s.trim()))
 							.filter((n) => Number.isFinite(n) && n > 0);
-						const value = this.getNodeParameter('value', i, '') as string;
+						const valuesRaw = this.getNodeParameter('customFields', i, {}) as IDataObject;
+						let values = toSubmissionArray(valuesRaw);
+
+						// Back-compat shim: older flows saved a single `customFieldId` +
+						// `value` (+ maybe `type`) rather than a fixedCollection. Synthesize
+						// a one-entry array so they keep working.
+						if (values.length === 0) {
+							const legacyId = this.getNodeParameter('customFieldId', i, '') as string;
+							const legacyValue = this.getNodeParameter('value', i, '') as string;
+							if (legacyId) {
+								values = toSubmissionArray({
+									value: [
+										{ customFieldId: String(legacyId), type: 'text', value: legacyValue },
+									],
+								} as IDataObject);
+							}
+						}
+
+						const body: IDataObject = {
+							category,
+							entityIds,
+							values: values as unknown as IDataObject[],
+						};
+						if (subCategory) body.subCategory = subCategory;
+
 						const res = await simplyprintCall(this, {
 							method: 'POST',
-							path: 'custom_fields/SetValues',
-							body: { field_id: customFieldId, entity, entity_ids: entityIds, value },
+							path: 'custom_fields/SubmitValues',
+							body,
+						});
+						result = res;
+					}
+				}
+
+				// -------------------- printJob --------------------
+				else if (resource === 'printJob') {
+					if (operation === 'create') {
+						const printerIdsRaw = this.getNodeParameter('printerIds', i) as string;
+						const printerIds = printerIdsRaw
+							.split(',')
+							.map((s) => Number(s.trim()))
+							.filter((n) => Number.isFinite(n) && n > 0);
+						if (printerIds.length === 0) {
+							throw new NodeOperationError(
+								this.getNode(),
+								'printJob.create requires at least one printer ID',
+								{ itemIndex: i },
+							);
+						}
+						const fileSource = this.getNodeParameter('fileSource', i, 'userFile') as string;
+						const sharedRaw = this.getNodeParameter('customFields', i, {}) as IDataObject;
+						const sharedCustomFields = toSubmissionArray(sharedRaw);
+						const individualRaw = this.getNodeParameter('individualCustomFields', i, '[]') as
+							| string
+							| IDataObject
+							| unknown[];
+						const startOptionsRaw = this.getNodeParameter('startOptions', i, '{}') as
+							| string
+							| IDataObject;
+						const mmsMapRaw = this.getNodeParameter('mmsMap', i, '{}') as string | IDataObject;
+
+						const body: IDataObject = {};
+
+						if (fileSource === 'userFile') {
+							const fileId = this.getNodeParameter('fileId', i) as number;
+							body.filesystem = String(fileId);
+						} else if (fileSource === 'queueItem') {
+							const queueItemId = this.getNodeParameter('queueItemId', i) as number;
+							body.queue_file = queueItemId;
+						}
+
+						if (sharedCustomFields.length > 0) {
+							body.custom_fields = sharedCustomFields as unknown as IDataObject[];
+						}
+
+						let individual: unknown = individualRaw;
+						if (typeof individual === 'string') {
+							const trimmed = individual.trim();
+							if (trimmed.length > 0) {
+								try {
+									individual = JSON.parse(trimmed);
+								} catch {
+									throw new NodeOperationError(
+										this.getNode(),
+										'individualCustomFields is not valid JSON',
+										{ itemIndex: i },
+									);
+								}
+							} else {
+								individual = [];
+							}
+						}
+						if (Array.isArray(individual) && individual.length > 0) {
+							body.individual_custom_fields = individual as IDataObject[];
+						}
+
+						const startOptions = normalizeStartOptions(startOptionsRaw);
+						if (startOptions) body.start_options = startOptions;
+
+						let mmsMap: unknown = mmsMapRaw;
+						if (typeof mmsMap === 'string') {
+							const trimmed = mmsMap.trim();
+							if (trimmed.length > 0) {
+								try {
+									mmsMap = JSON.parse(trimmed);
+								} catch {
+									throw new NodeOperationError(
+										this.getNode(),
+										'mmsMap is not valid JSON',
+										{ itemIndex: i },
+									);
+								}
+							} else {
+								mmsMap = {};
+							}
+						}
+						if (mmsMap && typeof mmsMap === 'object' && Object.keys(mmsMap as IDataObject).length > 0) {
+							body.mms_map = mmsMap as IDataObject;
+						}
+
+						const res = await simplyprintCall(this, {
+							method: 'POST',
+							path: 'printers/actions/CreateJob',
+							qs: { pid: printerIds.join(',') },
+							body,
 						});
 						result = res;
 					}

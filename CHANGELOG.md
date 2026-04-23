@@ -2,6 +2,17 @@
 
 All notable changes to `n8n-nodes-simplyprint` are documented here.
 
+## Unreleased
+
+- **File Upload now targets `files.simplyprint.io` (the integration-reachable upload API).** `POST /files/Upload` on `api.simplyprint.io` rejects API-key and OAuth requests (`$can_upload = isAppRequest() || isPanelRequest()` in `Upload.php`) — it is reserved for the web panel and mobile-app clients. This release switches the multipart upload to the dedicated `https://files.simplyprint.io/{company}/files/Upload` service, which returns a hex bucket-hash file id. `File -> Upload` returns `fileId` (string hash); `File -> Upload and Queue` passes that hash straight into `queue/AddItem` as `fileId` and, when printers are selected, into `printers/actions/CreateJob` as `file_id` (with `queue_file` when the queue step succeeded). Requires the Print Farm plan on the account.
+- **Custom fields on Upload and Add-to-Queue.** Queue items created by the multipart upload can carry PRINT_QUEUE custom fields in the same call via a "Custom Fields" fixed-collection. Values are submitted as the backend-shape array `[{customFieldId, value}]`; categories are inferred server-side.
+- **New Print Job resource with Create operation.** Wraps `printers/actions/CreateJob` so a workflow can start a print on one or more printers without dropping to Custom API Call. Supports user-file or queue-item sources, shared PRINT_JOB custom fields, per-printer overrides, start options, and MMS slot mappings.
+- **File -> Upload and Queue composite.** One operation uploads the binary (into the queue), and optionally starts a print on a CSV list of printer IDs using `queue_file`. Supports both PRINT_QUEUE custom fields (on the queue item) and PRINT_JOB custom fields (on the started job).
+- **Custom Field -> Submit Values rewritten for the multi-field endpoint.** Input is now a fixed-collection of `{customFieldId, type, value}` rows, targeting one or more entity IDs under a chosen category + optional sub-category. Old single-field flows keep working via a compatibility shim that synthesizes a one-row submission.
+- **Category / sub-category enums are now lowercase strings.** The backend `CustomFieldsSubmitController` only accepts lowercase values (`print`, `printer`, `filament`, `user_file`, `user` for category; `print_queue`, `print_job`, `user_file` for sub-category). Previous releases posted uppercase enum names and would fail validation.
+- **Bug fix: `custom_fields/SubmitValues` endpoint.** Earlier versions POSTed to `custom_fields/SetValues`, which does not exist - the operation would always fail with a 404. This release restores the feature.
+- **Graceful 403 on custom-field dropdowns.** `loadCustomFields` catches the 403 that OAuth callers get today (the backend marks `custom_fields/Get` as `oauth_disabled`) and returns an empty option list rather than breaking the UI. Use the List operation + paste the UUID into the Custom Field ID column until the backend flip lands.
+
 ## 0.3.4
 
 - Revert scope format back to space-separated (per RFC 6749). League's OAuth2 server parses scope by space; comma-separated caused League to see one giant "user.read,printers.read,..." scope name that isn't registered, triggering `invalid_scope`. SP's `comma_separated` validator turns out to be a no-op without a type parameter, so spaces work fine for that layer.

@@ -6,6 +6,7 @@ import { fileOperations, fileFields } from './File';
 import { filamentOperations, filamentFields } from './Filament';
 import { organizationOperations, organizationFields } from './Organization';
 import { customFieldOperations, customFieldFields } from './CustomField';
+import { printJobOperations, printJobFields } from './PrintJob';
 import { webhookOperations, webhookFields } from './Webhook';
 import { customApiCallOperations, customApiCallFields } from './CustomApiCall';
 
@@ -20,6 +21,7 @@ export const resourceProperty: INodeProperties = {
 		{ name: 'Filament', value: 'filament' },
 		{ name: 'File', value: 'file' },
 		{ name: 'Organization', value: 'organization' },
+		{ name: 'Print Job', value: 'printJob' },
 		{ name: 'Printer', value: 'printer' },
 		{ name: 'Queue', value: 'queue' },
 		{ name: 'Webhook', value: 'webhook' },
@@ -47,6 +49,9 @@ export const allProperties: INodeProperties[] = [
 
 	...customFieldOperations,
 	...customFieldFields,
+
+	...printJobOperations,
+	...printJobFields,
 
 	...webhookOperations,
 	...webhookFields,

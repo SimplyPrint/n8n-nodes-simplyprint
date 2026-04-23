@@ -34,6 +34,13 @@ export interface SimplyprintCallOptions {
 	 * For multipart uploads - if set, overrides the default JSON body handling.
 	 */
 	formData?: IDataObject;
+	/**
+	 * Override the host URL (e.g. for files.simplyprint.io uploads, which are
+	 * served by a separate domain). When set, the request URL is built as
+	 * `${baseUrlOverride}/${companyId}/${path}` instead of using the
+	 * credential's panelUrl + `/api`.
+	 */
+	baseUrlOverride?: string;
 }
 
 type AuthKind = 'oAuth2' | 'apiKey';
@@ -122,7 +129,9 @@ export async function simplyprintCall<T = unknown>(
 	const auth = await resolveAuth(ctx);
 	const companyId = opts.company !== undefined ? opts.company : auth.companyId;
 
-	const url = `${auth.panelUrl}/api/${companyId}/${opts.path.replace(/^\//, '')}`;
+	const url = opts.baseUrlOverride
+		? `${opts.baseUrlOverride.replace(/\/+$/, '')}/${companyId}/${opts.path.replace(/^\//, '')}`
+		: `${auth.panelUrl}/api/${companyId}/${opts.path.replace(/^\//, '')}`;
 
 	const requestOptions: IHttpRequestOptions = {
 		method: opts.method,
