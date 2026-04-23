@@ -2,12 +2,11 @@
 
 All notable changes to `n8n-nodes-simplyprint` are documented here.
 
-## 0.4.0-beta.1
+## 0.3.5
 
-- **Test build.** Default `panelUrl` in both credentials points at `https://test.simplyprint.io`. Used by SimplyPrint staff to validate the 0.4.0 changes end-to-end before the production release. Do not use in production without overriding `panelUrl`. Published to npm under the `beta` dist-tag, not `latest`.
-- All 0.4.0 changes (see below) apply.
+- **Staff test build on the `latest` tag.** Same code as the 0.4.0 work (see below) but published as 0.3.5 so the n8n UI's "Install a community node" flow offers it without requiring the `@beta` selector. Default `panelUrl` in both credentials points at `https://test.simplyprint.io` for end-to-end validation. Production users should pin to 0.3.4 or override `panelUrl` on the credential until the real 0.4.0 ships with the prod URL restored.
 
-## 0.4.0
+## 0.4.0 (staged, not yet published)
 
 ### Breaking changes
 
