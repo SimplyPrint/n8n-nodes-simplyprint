@@ -172,17 +172,54 @@ export class SimplyPrint implements INodeType {
 							| IDataObject[];
 						result = applySimplify(raw, simplify, simplifyQueueGroup);
 					} else if (operation === 'addItem') {
-						// File primary id on the wire is a hex string `uid`, submitted as
-						// `filesystem` (string, not int). `fileId` on queue/AddItem is only
-						// used for the hex upload hash coming back from files.simplyprint.io.
-						const fileUid = getFileIdParam(this, 'fileId', i);
+						// queue/AddItem accepts two file-id shapes:
+						//   - `filesystem`: hex UID of a user-file already in the library
+						//     (string). Matches `files/GetFiles` `uid` fields.
+						//   - `fileId`: hex bucket-hash returned by `files/Upload` via
+						//     files.simplyprint.io — a fresh upload that has not been
+						//     persisted to a user-file row yet.
+						// We surface both shapes through the `fileSource` selector.
+						const fileSource = this.getNodeParameter(
+							'fileSource',
+							i,
+							'userFile',
+						) as string;
 						const groupId = this.getNodeParameter('groupId', i, 0) as number;
 						const amount = this.getNodeParameter('amount', i, 1) as number;
 						const position = this.getNodeParameter('position', i, 'bottom') as string;
+						const forPrintersRaw = this.getNodeParameter('forPrinters', i, '') as string;
+						const forModelsRaw = this.getNodeParameter('forModels', i, '') as string;
+						const forGroupsRaw = this.getNodeParameter('forGroups', i, '') as string;
+						const tagIdsRaw = this.getNodeParameter('tagIds', i, '') as string;
 						const customFieldsRaw = this.getNodeParameter('customFields', i, {}) as IDataObject;
 						const customFields = toSubmissionArray(customFieldsRaw);
-						const body: IDataObject = { filesystem: fileUid, amount, position };
+
+						const body: IDataObject = { amount, position };
+						if (fileSource === 'uploadHash') {
+							const hash = String(this.getNodeParameter('uploadFileId', i, '') as string).trim();
+							if (!hash) {
+								throw new NodeOperationError(
+									this.getNode(),
+									'queue.addItem requires an Upload Hash when File Source is "Upload Hash"',
+									{ itemIndex: i },
+								);
+							}
+							body.fileId = hash;
+						} else {
+							body.filesystem = getFileIdParam(this, 'fileId', i);
+						}
 						if (groupId) body.group = groupId;
+						// for_printers / for_models / for_groups must be comma-separated
+						// integer strings (not integer arrays) per the backend validator.
+						if (forPrintersRaw.trim()) body.for_printers = forPrintersRaw.trim();
+						if (forModelsRaw.trim()) body.for_models = forModelsRaw.trim();
+						if (forGroupsRaw.trim()) body.for_groups = forGroupsRaw.trim();
+						// Tags are an integer array.
+						const tagIds = tagIdsRaw
+							.split(',')
+							.map((s) => Number(s.trim()))
+							.filter((n) => Number.isFinite(n) && n > 0);
+						if (tagIds.length > 0) body.tags = tagIds;
 						if (customFields.length > 0) body.custom_fields = customFields;
 						const res = await simplyprintCall(this, { method: 'POST', path: 'queue/AddItem', body });
 						result = res;
@@ -324,129 +361,6 @@ export class SimplyPrint implements INodeType {
 							size: file?.size,
 							expires_at: file?.expires_at,
 							raw: res,
-						};
-					} else if (operation === 'uploadAndQueue') {
-						const binaryPropertyName = this.getNodeParameter(
-							'binaryPropertyName',
-							i,
-							'data',
-						) as string;
-						const queueGroupId = this.getNodeParameter('queueGroupId', i, 0) as number;
-						const amount = this.getNodeParameter('amount', i, 1) as number;
-						const position = this.getNodeParameter('position', i, 'bottom') as string;
-						const queueCustomFieldsRaw = this.getNodeParameter(
-							'queueCustomFields',
-							i,
-							{},
-						) as IDataObject;
-						const queueCustomFields = toSubmissionArray(queueCustomFieldsRaw);
-						const printCustomFieldsRaw = this.getNodeParameter(
-							'printCustomFields',
-							i,
-							{},
-						) as IDataObject;
-						const printCustomFields = toSubmissionArray(printCustomFieldsRaw);
-						const startOnPrinterIdsRaw = this.getNodeParameter(
-							'startOnPrinterIds',
-							i,
-							'',
-						) as string;
-						const startPrinterIds = startOnPrinterIdsRaw
-							.split(',')
-							.map((s) => Number(s.trim()))
-							.filter((n) => Number.isFinite(n) && n > 0);
-						const startOptionsRaw = this.getNodeParameter('startOptions', i, '{}') as
-							| IDataObject
-							| string;
-						const startOptions = normalizeStartOptions(startOptionsRaw);
-
-						if (!queueGroupId || queueGroupId <= 0) {
-							throw new NodeOperationError(
-								this.getNode(),
-								'file.uploadAndQueue requires a Queue Group ID',
-								{ itemIndex: i },
-							);
-						}
-
-						const binaryData = this.helpers.assertBinaryData(i, binaryPropertyName);
-						const buffer = await this.helpers.getBinaryDataBuffer(i, binaryPropertyName);
-
-						// Step 1: upload to files.simplyprint.io.
-						const uploadRes = await simplyprintCall<{ file?: { id?: string } }>(this, {
-							method: 'POST',
-							path: 'files/Upload',
-							formData: {
-								file: {
-									value: buffer,
-									options: {
-										filename: binaryData.fileName ?? 'upload',
-										contentType: binaryData.mimeType,
-									},
-								},
-							},
-							baseUrlOverride: 'https://files.simplyprint.io',
-						});
-						const uploadedFileId = String(
-							(uploadRes as IDataObject).file
-								? (((uploadRes as IDataObject).file as IDataObject).id ?? '')
-								: '',
-						);
-						if (!uploadedFileId) {
-							throw new NodeOperationError(
-								this.getNode(),
-								'files/Upload did not return a file id',
-								{ itemIndex: i },
-							);
-						}
-
-						// Step 2: add to queue using the API file id.
-						const addBody: IDataObject = {
-							fileId: uploadedFileId,
-							group: queueGroupId,
-							amount,
-							position,
-						};
-						if (queueCustomFields.length > 0)
-							addBody.custom_fields = queueCustomFields as unknown as IDataObject[];
-						const addRes = await simplyprintCall<{ created_id?: number; id?: number }>(this, {
-							method: 'POST',
-							path: 'queue/AddItem',
-							body: addBody,
-						});
-						// queue/AddItem returns `{ status, message, created_id, approval_status }`
-						// flat at top level (envelope spread via AjaxBaseController::respond).
-						const queueItemRaw = (addRes ?? {}) as IDataObject;
-						const queueItemId = Number(
-							queueItemRaw.created_id ?? queueItemRaw.id ?? 0,
-						);
-
-						// Step 3 (optional): start print on printers.
-						let startRes: unknown = null;
-						if (startPrinterIds.length > 0) {
-							const jobBody: IDataObject = {};
-							if (queueItemId > 0) {
-								jobBody.queue_file = queueItemId;
-							} else {
-								jobBody.file_id = uploadedFileId;
-							}
-							if (printCustomFields.length > 0) {
-								jobBody.custom_fields = printCustomFields as unknown as IDataObject[];
-							}
-							if (startOptions) jobBody.start_options = startOptions;
-							startRes = await simplyprintCall(this, {
-								method: 'POST',
-								path: 'printers/actions/CreateJob',
-								qs: { pid: startPrinterIds.join(',') },
-								body: jobBody,
-							});
-						}
-
-						result = {
-							fileId: uploadedFileId,
-							queueItemId: queueItemId || null,
-							jobs: startRes,
-							queue: addRes,
-							upload: uploadRes,
 						};
 					} else if (operation === 'move') {
 						// files/MoveFiles is a GET (not POST) with query params
@@ -683,19 +597,6 @@ export class SimplyPrint implements INodeType {
 							path: 'printers/actions/CreateJob',
 							qs: { pid: printerIds.join(',') },
 							body,
-						});
-						result = res;
-					}
-				}
-
-				// -------------------- webhook --------------------
-				else if (resource === 'webhook') {
-					if (operation === 'triggerTest') {
-						const webhookId = this.getNodeParameter('webhookId', i) as number;
-						const res = await simplyprintCall(this, {
-							method: 'POST',
-							path: 'webhooks/TriggerTestWebhook',
-							body: { id: webhookId },
 						});
 						result = res;
 					}

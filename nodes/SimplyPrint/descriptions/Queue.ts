@@ -91,7 +91,7 @@ export const queueFields: INodeProperties[] = [
 		typeOptions: { loadOptionsMethod: 'loadQueueGroups' },
 		default: 0,
 		description:
-			'Leave blank for the default group. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
+			'Leave blank for the default group. Required only if the account has queue groups configured. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 		displayOptions: { show: { resource: ['queue'], operation: ['getAll', 'addItem', 'empty'] } },
 	},
 	{
@@ -103,13 +103,28 @@ export const queueFields: INodeProperties[] = [
 		displayOptions: { show: { resource: ['queue'], operation: ['getAll', 'empty'] } },
 	},
 	{
+		displayName: 'File Source',
+		name: 'fileSource',
+		type: 'options',
+		default: 'userFile',
+		description:
+			'Where the file comes from. Pick "User File" to queue an already-uploaded library file. Pick "Upload Hash" to pass the hex ID returned by `File > Upload`',
+		options: [
+			{ name: 'Upload Hash (From File > Upload)', value: 'uploadHash' },
+			{ name: 'User File', value: 'userFile' },
+		],
+		displayOptions: { show: { resource: ['queue'], operation: ['addItem'] } },
+	},
+	{
 		displayName: 'File',
 		name: 'fileId',
 		type: 'resourceLocator',
 		default: { mode: 'list', value: '' },
 		required: true,
-		description: 'User file to add to the queue',
-		displayOptions: { show: { resource: ['queue'], operation: ['addItem'] } },
+		description: 'User file (from your SimplyPrint library) to add to the queue',
+		displayOptions: {
+			show: { resource: ['queue'], operation: ['addItem'], fileSource: ['userFile'] },
+		},
 		modes: [
 			{
 				displayName: 'From List',
@@ -128,6 +143,19 @@ export const queueFields: INodeProperties[] = [
 		],
 	},
 	{
+		displayName: 'Upload Hash',
+		name: 'uploadFileId',
+		type: 'string',
+		default: '',
+		required: true,
+		placeholder: 'e.g. c677ebfd2de41c58eec387e3c84e7895',
+		description:
+			'Hex ID returned by `File > Upload` on its `fileId` field. Use this when piping a fresh upload straight into the queue.',
+		displayOptions: {
+			show: { resource: ['queue'], operation: ['addItem'], fileSource: ['uploadHash'] },
+		},
+	},
+	{
 		displayName: 'Amount',
 		name: 'amount',
 		type: 'number',
@@ -144,6 +172,43 @@ export const queueFields: INodeProperties[] = [
 			{ name: 'Top', value: 'top' },
 		],
 		default: 'bottom',
+		description: 'Where in the queue to place the item. Use Custom API Call to target a specific 1-based index.',
+		displayOptions: { show: { resource: ['queue'], operation: ['addItem'] } },
+	},
+	{
+		displayName: 'Target Printer IDs',
+		name: 'forPrinters',
+		type: 'string',
+		default: '',
+		placeholder: 'e.g. 42,77',
+		description: 'Comma-separated printer IDs the item may print on. Empty = any compatible printer.',
+		displayOptions: { show: { resource: ['queue'], operation: ['addItem'] } },
+	},
+	{
+		displayName: 'Target Printer Model IDs',
+		name: 'forModels',
+		type: 'string',
+		default: '',
+		placeholder: 'e.g. 3,11',
+		description: 'Comma-separated printer-model IDs the item may print on. Used instead of (or alongside) specific printer IDs.',
+		displayOptions: { show: { resource: ['queue'], operation: ['addItem'] } },
+	},
+	{
+		displayName: 'Target Printer Group IDs',
+		name: 'forGroups',
+		type: 'string',
+		default: '',
+		placeholder: 'e.g. 2,5',
+		description: 'Comma-separated printer-group IDs the item may print on',
+		displayOptions: { show: { resource: ['queue'], operation: ['addItem'] } },
+	},
+	{
+		displayName: 'Tag IDs',
+		name: 'tagIds',
+		type: 'string',
+		default: '',
+		placeholder: 'e.g. 1,4,9',
+		description: 'Comma-separated tag IDs to apply to the queue item. Use Organization > Get Many Tags to look IDs up.',
 		displayOptions: { show: { resource: ['queue'], operation: ['addItem'] } },
 	},
 	{
@@ -165,10 +230,7 @@ export const queueFields: INodeProperties[] = [
 				name: 'list',
 				type: 'list',
 				placeholder: 'Select a queue item...',
-				typeOptions: {
-					searchListMethod: 'searchQueueItems',
-					searchable: true,
-				},
+				typeOptions: { searchListMethod: 'searchQueueItems', searchable: true },
 			},
 			{
 				displayName: 'By ID',
@@ -227,7 +289,7 @@ export const queueFields: INodeProperties[] = [
 	},
 	customFieldFixedCollection(
 		'Custom Fields',
-		'PRINT_QUEUE custom-field values to attach to the new queue item. Category is inferred server-side',
+		'PRINT_QUEUE custom-field values to attach to the new queue item. Category is inferred server-side.',
 		{ show: { resource: ['queue'], operation: ['addItem'] } },
 	),
 	{

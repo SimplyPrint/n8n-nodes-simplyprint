@@ -2,6 +2,20 @@
 
 All notable changes to `n8n-nodes-simplyprint` are documented here.
 
+## 0.3.9
+
+Finishing the Activepieces-parity pass — the three items 0.3.8 deliberately deferred.
+
+- **File > Upload and Queue composite removed.** Chain three atomic steps instead: `File > Upload` -> `Queue > Add Item` -> `Print Job > Create`. Each step's error surface and input shape is now visible in the flow builder rather than hidden behind one black-box op. The upload operation's `fileId` (hex UID) output pipes directly into `Queue > Add Item` via its new "Upload Hash" file source (or just store it as a user file and pipe into "User File" mode).
+- **Queue > Add Item parameter surface expanded** to match the backend validator:
+  - `File Source` selector: `User File` (UID resourceLocator) vs `Upload Hash` (hex string from `File > Upload`). Sends `filesystem` or `fileId` on the wire respectively.
+  - New fields: `Target Printer IDs` / `Target Printer Model IDs` / `Target Printer Group IDs` (each comma-separated int strings, sent as `for_printers` / `for_models` / `for_groups`), and `Tag IDs` (comma-separated ints, sent as an int array `tags`).
+  - `Queue Group Name or ID` description updated to reflect that it's required only when the account has queue groups configured.
+- **Webhook resource removed.** The single `Trigger Test` operation was debug-only. The `SimplyPrint Trigger` node handles receiving deliveries; there's no flow-builder case for firing a test at a user-configured webhook.
+- **Trigger event list expanded from 15 to 64** to match the full `WebhookEvent` enum: jobs (started / paused / resumed / cancelled / done / failed / bed_cleared / objects_skipped), printer state (autoprint / nozzle / material / custom tags / out-of-order / AI state / AI failure / AutoPrint cap), company (autoprint / user signup / user pending), queue (add / delete / empty / move / revive / pending_approval / approved / denied), filament (create / update / delete / assigned / unassigned), balance (charged / refunded / topped_up / adjusted), quota (request_new / request_resolved / adjusted / reset), full maintenance set (job lifecycle, problems, low stock, tasks, schedules, spare parts, stock). Each carries a one-line description noting the wrapper keys the body will carry.
+
+Result: 7 resources (down from 8), 30+ operations (down from 30+ with the composite folded out), 64 trigger events (up from 15).
+
 ## 0.3.8
 
 Pulling across the fixes the Activepieces piece learned the hard way.
