@@ -2,6 +2,11 @@
 
 All notable changes to `n8n-nodes-simplyprint` are documented here.
 
+## 0.3.6
+
+- **Bug fix: trigger event names now match the backend `WebhookEvent` enum.** The n8n trigger node was shipping dotted-path event names (`queue.item.added`, `ai_failure.detected`, `maintenance_problem.reported`, ...) that SimplyPrint's `webhooks/Create` endpoint rejected with `events.0: Invalid enum value specified!` — so no webhook ever registered. Seven events renamed to their exact backend backing values: `queue.item.added` → `queue.add_item`, `queue.item.approved` → `queue.item_approved`, `queue.item.denied` → `queue.item_denied`, `queue.item.pending_approval` → `queue.item_pending_approval`, `ai_failure.detected` → `printer.ai_failure_detected`, `maintenance_job.overdue` → `maintenance.job_overdue`, `maintenance_problem.reported` → `maintenance.problem_reported`. Existing test-build workflows that already saved the old values need the event dropdown reselected.
+- All 0.3.5 behaviour is carried forward: this is still the 0.4.0 work published on the `latest` tag pointing at `https://test.simplyprint.io`.
+
 ## 0.3.5
 
 - **Staff test build on the `latest` tag.** Same code as the 0.4.0 work (see below) but published as 0.3.5 so the n8n UI's "Install a community node" flow offers it without requiring the `@beta` selector. Default `panelUrl` in both credentials points at `https://test.simplyprint.io` for end-to-end validation. Production users should pin to 0.3.4 or override `panelUrl` on the credential until the real 0.4.0 ships with the prod URL restored.

@@ -31,7 +31,7 @@ import {
 const EVENT_OPTIONS = [
 	{
 		name: 'AI Failure Detected',
-		value: 'ai_failure.detected',
+		value: 'printer.ai_failure_detected',
 		action: 'AI failure detected',
 		description: 'Fires when SimplyPrint AI flags a print as failing',
 	},
@@ -49,13 +49,13 @@ const EVENT_OPTIONS = [
 	},
 	{
 		name: 'Maintenance Job Overdue',
-		value: 'maintenance_job.overdue',
+		value: 'maintenance.job_overdue',
 		action: 'Maintenance job overdue',
 		description: 'Fires when a scheduled maintenance job passes its due date',
 	},
 	{
 		name: 'Maintenance Problem Reported',
-		value: 'maintenance_problem.reported',
+		value: 'maintenance.problem_reported',
 		action: 'Maintenance problem reported',
 		description: 'Fires when a user reports a problem with a printer',
 	},
@@ -97,25 +97,25 @@ const EVENT_OPTIONS = [
 	},
 	{
 		name: 'Queue Item Added',
-		value: 'queue.item.added',
+		value: 'queue.add_item',
 		action: 'Queue item added',
 		description: 'Fires when a new item is added to the print queue',
 	},
 	{
 		name: 'Queue Item Approved',
-		value: 'queue.item.approved',
+		value: 'queue.item_approved',
 		action: 'Queue item approved',
 		description: 'Fires when a pending queue item is approved by a reviewer',
 	},
 	{
 		name: 'Queue Item Denied',
-		value: 'queue.item.denied',
+		value: 'queue.item_denied',
 		action: 'Queue item denied',
 		description: 'Fires when a pending queue item is denied by a reviewer',
 	},
 	{
 		name: 'Queue Item Pending Approval',
-		value: 'queue.item.pending_approval',
+		value: 'queue.item_pending_approval',
 		action: 'Queue item pending approval',
 		description: 'Fires when a queue item enters the pending-approval state',
 	},
