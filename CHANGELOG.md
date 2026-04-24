@@ -2,6 +2,10 @@
 
 All notable changes to `n8n-nodes-simplyprint` are documented here.
 
+## 0.3.11
+
+- **Brand name fix (round 2).** Same class of bug as 0.3.10 — the sentence-case lint autofixer had lowercased "AutoPrint" (a SimplyPrint trademark) to "autoprint" on two trigger actions (`Printer autoprint state changed`, `Company autoprint state changed`). Restored with per-line eslint suppressions, same pattern as the Custom API Call fix.
+
 ## 0.3.10
 
 - **Brand name fix.** The Custom API Call action was showing as "Call any simply print api endpoint" in the Node Creator. The `node-param-operation-option-action-miscased` lint rule had autofixed "SimplyPrint API" -> "simply print api" in an earlier pass. Restored to "Call any SimplyPrint API endpoint" with an eslint-disable-next-line and a one-line justification (proper nouns preserved).
