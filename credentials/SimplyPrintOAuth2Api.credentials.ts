@@ -78,6 +78,12 @@ export class SimplyPrintOAuth2Api implements ICredentialType {
 			// by space. (SP also has a `comma_separated` validator on scope, but
 			// it's effectively a no-op without a type param - it neither splits
 			// nor validates individual elements.)
+			//
+			// Intentionally omitted:
+			// - `custom_fields.write`: not currently granted to OAuth tokens;
+			//   requesting it breaks the consent screen. Custom-field writes go
+			//   via `custom_fields/SubmitValues` which is gated by other scopes
+			//   (queue.write, files.write, ...) depending on the target entity.
 			displayName: 'Scope',
 			name: 'scope',
 			type: 'hidden',

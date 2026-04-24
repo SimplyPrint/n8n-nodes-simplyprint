@@ -2,6 +2,7 @@ import type {
 	IExecuteFunctions,
 	IHookFunctions,
 	ILoadOptionsFunctions,
+	ITriggerFunctions,
 	IWebhookFunctions,
 	IDataObject,
 	IHttpRequestMethods,
@@ -16,6 +17,7 @@ export type SimplyprintContext =
 	| IExecuteFunctions
 	| ILoadOptionsFunctions
 	| IHookFunctions
+	| ITriggerFunctions
 	| IWebhookFunctions;
 
 export interface SimplyprintCallOptions {

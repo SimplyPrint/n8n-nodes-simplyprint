@@ -103,15 +103,29 @@ export const queueFields: INodeProperties[] = [
 		displayOptions: { show: { resource: ['queue'], operation: ['getAll', 'empty'] } },
 	},
 	{
-		displayName: 'File Name or ID',
+		displayName: 'File',
 		name: 'fileId',
-		type: 'options',
-		description:
-			'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
-		typeOptions: { loadOptionsMethod: 'loadFiles' },
+		type: 'resourceLocator',
+		default: { mode: 'list', value: '' },
 		required: true,
-		default: 0,
+		description: 'User file to add to the queue',
 		displayOptions: { show: { resource: ['queue'], operation: ['addItem'] } },
+		modes: [
+			{
+				displayName: 'From List',
+				name: 'list',
+				type: 'list',
+				placeholder: 'Select a file...',
+				typeOptions: { searchListMethod: 'searchFiles', searchable: true },
+			},
+			{
+				displayName: 'By UID',
+				name: 'id',
+				type: 'string',
+				placeholder: 'e.g. c677ebfd2de41c58eec387e3c84e7895',
+				hint: 'Hex string UID (see File > Get Many)',
+			},
+		],
 	},
 	{
 		displayName: 'Amount',

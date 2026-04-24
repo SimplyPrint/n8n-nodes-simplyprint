@@ -5,9 +5,10 @@ import { SimplyPrint } from '../nodes/SimplyPrint/SimplyPrint.node';
 /**
  * End-to-end tests for the action node's execute() method with a mocked
  * IExecuteFunctions context. Covers:
- *   - Printer > Get (resourceLocator id resolution + simplify)
+ *   - Printer > Get (resourceLocator id resolution + simplify + nested .printer)
  *   - Printer > Get Many (simplify off, full passthrough)
- *   - File > Delete (returns { deleted: true })
+ *   - File > Move (GET files/MoveFiles with `files` CSV + `folder`)
+ *   - error path surfacing vs. continueOnFail
  */
 
 interface MockedParams {
@@ -63,19 +64,23 @@ describe('SimplyPrint.execute > printer', () => {
 			},
 			(req) => {
 				if (req.url.endsWith('/printers/Get')) {
-					// Single-printer GET. Envelope spreads top level; our execute()
-					// reads `res.data` (falls back to `res` when a single printer
-					// is returned as a bare object rather than a list).
+					// Single-printer GET. Canonical row shape from `printers/Get`:
+					// the printer's own name/state/group/model live UNDER `.printer`,
+					// and the top level carries id/sort_order/filament/job.
 					return {
 						status: true,
 						data: {
 							id: 42,
-							name: 'Voron 2.4',
-							model: 'Voron 2.4 300',
-							state: 'printing',
-							online: true,
-							job: { progress: 73.2, file_name: 'bracket.gcode', time_left: 900 },
-							mac: 'aa:bb:cc:dd:ee:ff',
+							sort_order: 3,
+							printer: {
+								name: 'Voron 2.4',
+								state: 'printing',
+								group: 7,
+								online: true,
+								model: { id: 11, name: 'Voron 2.4 300', brand: 'Voron' },
+								serial: 'aa:bb:cc:dd:ee:ff',
+							},
+							job: { progress: 73.2, filename: 'bracket.gcode', time_left: 900 },
 							ignored_field: 'noise',
 						},
 					};
@@ -119,29 +124,32 @@ describe('SimplyPrint.execute > printer', () => {
 	});
 });
 
-describe('SimplyPrint.execute > file.delete', () => {
+describe('SimplyPrint.execute > file.move', () => {
 	const node = new SimplyPrint();
 
-	it('returns { deleted: true } and issues a Delete POST', async () => {
+	it('issues a GET to files/MoveFiles with `files` CSV + `folder`', async () => {
+		// files/MoveFiles is intentionally a GET, not a POST; the file
+		// identifier on the wire is the hex `uid` string, not an integer.
 		const { ctx, httpRequestWithAuthentication } = mockExecuteContext(
 			{
 				resource: 'file',
-				operation: 'delete',
-				fileId: { __rl: true, mode: 'id', value: '9128' },
+				operation: 'move',
+				fileUids: 'c677ebfd2de41c58eec387e3c84e7895,96b2fc6c4aaedfbe37e62b2faafb2bf6',
+				targetFolderId: 31,
 			},
-			(req) => {
-				if (req.url.endsWith('/files/Delete')) {
-					return { status: true };
-				}
-				return { status: true };
-			},
+			() => ({ status: true, moved: 2 }),
 		);
 		const out = await node.execute.call(ctx as never);
-		expect(out[0][0].json).toEqual({ deleted: true });
-		const delCall = httpRequestWithAuthentication.mock.calls.find((c) =>
-			c[1].url.endsWith('/files/Delete'),
+		expect(out[0][0].json).toEqual({ status: true, moved: 2 });
+
+		const call = httpRequestWithAuthentication.mock.calls.find((c) =>
+			c[1].url.endsWith('/files/MoveFiles'),
 		);
-		expect(delCall?.[1].body).toEqual({ id: 9128 });
+		expect(call?.[1].method).toBe('GET');
+		expect(call?.[1].qs).toEqual({
+			files: 'c677ebfd2de41c58eec387e3c84e7895,96b2fc6c4aaedfbe37e62b2faafb2bf6',
+			folder: 31,
+		});
 	});
 });
 

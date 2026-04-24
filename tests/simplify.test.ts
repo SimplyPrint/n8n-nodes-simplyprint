@@ -7,87 +7,106 @@ import {
 	simplifyQueueGroup,
 	simplifyPrintHistory,
 	simplifyTag,
+	userDisplayName,
 } from '../nodes/SimplyPrint/common/simplify';
 
 describe('simplifyPrinter', () => {
-	it('keeps at most 10 fields on the output', () => {
+	it('reads name/state/group/model from the nested .printer object', () => {
+		// `printers/Get` row: `{ id, sort_order, printer: {...}, filament, job }`.
 		const raw = {
 			id: 42,
-			name: 'Voron 2.4',
-			model: 'Voron 2.4 300',
-			state: 'printing',
-			online: true,
-			temperatures: { tool0: 215, bed: 60 },
-			last_seen: '2026-04-23T10:00:00Z',
-			job: { progress: 42.5, file_name: 'bracket.gcode', time_left: 1800 },
-			// Fields that must NOT leak through:
-			slicer: 'PrusaSlicer',
-			mac: 'aa:bb:cc:dd:ee:ff',
-			owner_id: 17,
-			group_ids: [1, 2],
-			webcam_url: 'https://...',
-			extra_field: 'noise',
-		} as unknown as Parameters<typeof simplifyPrinter>[0];
-		const out = simplifyPrinter(raw);
-		expect(Object.keys(out).length).toBeLessThanOrEqual(10);
-		expect(out.id).toBe(42);
-		expect(out.state).toBe('printing');
-		expect(out.progress).toBe(42.5);
-		expect(out.currentFile).toBe('bracket.gcode');
-		expect('slicer' in out).toBe(false);
-		expect('mac' in out).toBe(false);
-	});
-
-	it('falls back to top-level fields when current_job is absent', () => {
-		const raw = {
-			id: 3,
-			name: 'Old P1S',
-			state: 'idle',
-			progress: 0,
-			current_file: null,
+			sort_order: 3,
+			printer: {
+				name: 'Voron 2.4',
+				state: 'printing',
+				group: 7,
+				groupName: 'Fleet A',
+				online: true,
+				model: { id: 11, name: 'Voron 2.4 300', brand: 'Voron' },
+				serial: 'aa:bb:cc:dd:ee:ff',
+			},
+			filament: { id: 3, brand: 'Prusament' },
+			job: { progress: 42.5, filename: 'bracket.gcode', time_left: 1800 },
 		};
 		const out = simplifyPrinter(raw);
-		expect(out.progress).toBe(0);
+		expect(out.id).toBe(42);
+		expect(out.name).toBe('Voron 2.4');
+		expect(out.state).toBe('printing');
+		expect(out.group).toBe(7);
+		expect(out.groupName).toBe('Fleet A');
+		expect(out.online).toBe(true);
+		expect(out.model).toBe('Voron 2.4 300'); // flattened from {id,name,brand}
+		expect(out.currentFile).toBe('bracket.gcode');
+		expect(out.progress).toBe(42.5);
+		expect(out.timeLeft).toBe(1800);
+		expect(out.filament).toEqual({ id: 3, brand: 'Prusament' });
+		expect(Object.keys(out).length).toBeLessThanOrEqual(11);
+	});
+
+	it('tolerates missing printer / job subobjects', () => {
+		const out = simplifyPrinter({ id: 3 });
+		expect(out.id).toBe(3);
+		expect(out.name).toBeUndefined();
 		expect(out.currentFile).toBeNull();
+		expect(out.progress).toBeNull();
 	});
 });
 
 describe('simplifyQueueItem', () => {
-	it('picks the queue-item-shape subset', () => {
+	it('picks the canonical queue-item fields (filename / group / sort_order)', () => {
+		// Canonical names per PrintQueueItem::getFormattedData().
 		const raw = {
 			id: 8821,
-			file_id: 'abc123',
-			file_name: 'spool.gcode',
-			group_id: 4,
+			filename: 'spool.gcode',
+			filesystem_id: 'c677ebfd2de41c58eec387e3c84e7895',
+			group: 4,
+			sort_order: 7,
 			amount: 2,
-			done: false,
-			position: 7,
-			note: 'needs tree supports',
-			created_at: '2026-04-23T09:00:00Z',
-			status: 'pending',
+			left: 1,
+			printed: 0,
+			user_id: 1,
+			added: '2026-04-24T09:00:00Z',
 			debug: 'should not leak',
-			internal: true,
+			note: 'also should drop',
 		};
 		const out = simplifyQueueItem(raw);
 		expect(out).toEqual({
 			id: 8821,
-			file_id: 'abc123',
-			file_name: 'spool.gcode',
-			group_id: 4,
+			filename: 'spool.gcode',
+			filesystem_id: 'c677ebfd2de41c58eec387e3c84e7895',
+			group: 4,
+			sort_order: 7,
 			amount: 2,
-			done: false,
-			position: 7,
-			note: 'needs tree supports',
-			created_at: '2026-04-23T09:00:00Z',
-			status: 'pending',
+			left: 1,
+			printed: 0,
+			user_id: 1,
+			added: '2026-04-24T09:00:00Z',
 		});
 		expect('debug' in out).toBe(false);
+		expect('note' in out).toBe(false);
 	});
 
-	it('omits fields that are undefined on the input (no noisy undefined keys)', () => {
-		const out = simplifyQueueItem({ id: 1, file_name: 'x' });
+	it('omits undefined fields cleanly', () => {
+		const out = simplifyQueueItem({ id: 1, filename: 'x' });
 		expect('amount' in out).toBe(false);
 		expect('debug' in out).toBe(false);
+	});
+});
+
+describe('userDisplayName', () => {
+	it('concatenates first_name + last_name (no combined name field on SP users)', () => {
+		expect(userDisplayName({ first_name: 'Albert', last_name: 'Møller Nielsen' }))
+			.toBe('Albert Møller Nielsen');
+	});
+
+	it('returns only first_name when last is missing', () => {
+		expect(userDisplayName({ first_name: 'Albert' })).toBe('Albert');
+	});
+
+	it('returns undefined when user is null/empty', () => {
+		expect(userDisplayName(null)).toBeUndefined();
+		expect(userDisplayName(undefined)).toBeUndefined();
+		expect(userDisplayName({})).toBeUndefined();
 	});
 });
 
@@ -113,7 +132,7 @@ describe('applySimplify', () => {
 	it('simplifies history rows consistently', () => {
 		const out = simplifyPrintHistory({
 			id: 11,
-			file_name: 'part.gcode',
+			filename: 'part.gcode',
 			printer_id: 3,
 			started_at: 't0',
 			ended_at: 't1',

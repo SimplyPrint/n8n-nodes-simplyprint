@@ -1,12 +1,22 @@
 import type { IDataObject } from 'n8n-workflow';
 
 /**
- * n8n UX guideline: when an endpoint returns data with more than 10 fields,
- * expose a "Simplify" boolean that returns a trimmed version. Each of these
- * helpers picks the ten most useful fields for the corresponding SimplyPrint
- * entity and flattens nested shapes where helpful.
+ * n8n UX guideline: endpoints returning > 10 fields should expose a
+ * "Simplify" boolean. Each helper here picks the most useful fields and
+ * flattens nested shapes where helpful. Pass the raw through when off.
  *
- * Pass the raw response object through verbatim when Simplify is off.
+ * Canonical field names (these differ from what the n8n node historically
+ * assumed — source-of-truth is the SimplyPrint backend entity
+ * getFormattedData() methods):
+ *   - PrintQueueItem: `filename` (not file_name), `group` (not group_id),
+ *     `sort_order` (not order), `filesystem_id`, `user_id`, `left`, `printed`,
+ *     `added`.
+ *   - Printer row (from printers/Get): top level is `{ id, sort_order,
+ *     printer: {...}, filament, job }` — the printer's own name/state/group/
+ *     model live UNDER `.printer`. `printer.model` is a PrinterModel object
+ *     `{id, name, brand, ...}` when expanded by the backend.
+ *   - User object: `{ id, sso, first_name, last_name, avatar }` — no
+ *     combined `name` field. Concat first + last for display.
  */
 
 function pick(obj: IDataObject, keys: string[]): IDataObject {
@@ -17,37 +27,50 @@ function pick(obj: IDataObject, keys: string[]): IDataObject {
 	return out;
 }
 
+export function userDisplayName(user: IDataObject | null | undefined): string | undefined {
+	if (!user) return undefined;
+	const first = (user.first_name as string | undefined) ?? '';
+	const last = (user.last_name as string | undefined) ?? '';
+	const full = `${first} ${last}`.trim();
+	return full || undefined;
+}
+
 export function simplifyPrinter(raw: IDataObject): IDataObject {
-	const job = (raw.current_job ?? raw.job) as IDataObject | undefined;
+	// `printers/Get` row: `{ id, sort_order, printer: {...}, filament, job }`.
+	const printer = (raw.printer ?? {}) as IDataObject;
+	const job = (raw.job ?? {}) as IDataObject;
+	const filament = raw.filament;
+	const model = printer.model as IDataObject | string | null | undefined;
+	const modelName = typeof model === 'string' ? model : (model as IDataObject | undefined)?.name;
+
 	return {
 		id: raw.id,
-		name: raw.name,
-		model: raw.model,
-		state: raw.state ?? raw.status,
-		online: raw.online,
-		temperature:
-			typeof raw.temperatures === 'object' && raw.temperatures !== null
-				? (raw.temperatures as IDataObject)
-				: undefined,
-		progress: job?.progress ?? raw.progress,
-		currentFile: job?.file_name ?? raw.current_file,
-		timeLeft: job?.time_left ?? raw.time_left,
-		lastSeen: raw.last_seen,
+		name: printer.name,
+		model: modelName,
+		state: printer.state,
+		group: printer.group,
+		groupName: printer.groupName,
+		online: printer.online,
+		currentFile: job.filename ?? null,
+		progress: job.progress ?? null,
+		timeLeft: job.time_left ?? null,
+		filament: filament ?? null,
 	};
 }
 
 export function simplifyQueueItem(raw: IDataObject): IDataObject {
+	// Canonical queue-item fields per PrintQueueItem::getFormattedData().
 	return pick(raw, [
 		'id',
-		'file_id',
-		'file_name',
-		'group_id',
+		'filename',
+		'filesystem_id',
+		'group',
+		'sort_order',
 		'amount',
-		'done',
-		'position',
-		'note',
-		'created_at',
-		'status',
+		'left',
+		'printed',
+		'user_id',
+		'added',
 	]);
 }
 
@@ -58,7 +81,7 @@ export function simplifyQueueGroup(raw: IDataObject): IDataObject {
 export function simplifyPrintHistory(raw: IDataObject): IDataObject {
 	return pick(raw, [
 		'id',
-		'file_name',
+		'filename',
 		'printer_id',
 		'started_at',
 		'ended_at',

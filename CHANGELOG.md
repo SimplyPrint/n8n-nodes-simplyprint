@@ -2,6 +2,35 @@
 
 All notable changes to `n8n-nodes-simplyprint` are documented here.
 
+## 0.3.8
+
+Pulling across the fixes the Activepieces piece learned the hard way.
+
+- **Instant sample data in the editor.** The trigger node now implements `trigger() -> { manualTriggerFunction }` that fetches a real event body from `GET /webhooks/GetSamplePayload?event=<e>&limit=1` when the user clicks "Execute step" / "Listen for test event". The emitted envelope matches what `webhook()` returns on a live delivery (`{ webhook_id, event, timestamp, data, source }`), so in-editor tests see the exact same shape as activated runs. Falls back to a synthetic envelope when the endpoint isn't reachable.
+- **Endpoint path corrections.** Most of these were guessed or ported from stale docs and never worked:
+  - `queue/GetQueueGroups` → `queue/groups/Get` (response key `list`, not `data`)
+  - `files/Get` → `files/GetFiles` (query param `f` not `folder_id`; `-1` = all, `0` = root, `N` = folder id; response key `files`, not `data`)
+  - `filament/Get` → `filament/GetFilament` (response key `filament`, a dict keyed by id, not an array — now `Object.values`'d)
+  - `queue/RemoveItem` → `queue/DeleteItem`
+  - `files/Move` → GET `files/MoveFiles` (was POST) with `files` (comma-separated UID hex strings) + `folder` (int) query params
+- **File operations trimmed.** `File > Get` (single) and `File > Delete` removed — no OAuth path exists for either (`files/DeleteFile` has `oauth_disabled=true`; no single-file fetch endpoint accepts OAuth). Use `File > Get Many` with a `search` filter to look a single file up.
+- **Response field renames to match entity `getFormattedData()`:**
+  - Printer row (from `printers/Get`): printer-level fields live under `.printer` (name, state, group, groupName, online, model). `printer.model` can be an expanded `{id, name, brand, ...}` object — simplify flattens it to a string. All loadOptions/listSearch + the simplify helper rewritten accordingly.
+  - Queue item (from `queue/GetItems` and `data.queue_item` on webhooks): canonical names are `filename` (not `file_name`), `group` (not `group_id`), `sort_order` (not `order`), `filesystem_id`, `user_id`, `left`, `printed`, `added`.
+  - `queue/GetItems` envelope key is `queue` (not `data`); `queue/approval/GetPendingItems` is `items`; `tags/Get` is `tags` (not `data`).
+- **User display.** There is no `name` field on SP's `User::getFormattedData()`; added a `userDisplayName()` helper that concatenates `first_name + last_name`.
+- **Queue > Add Item.** File identifier changed from numeric `fileId` → string `filesystem` (hex UID), submitted via the `filesystem` body key per backend validation. The Queue > Add Item file picker is now a `resourceLocator` with a "By UID" mode.
+- **Tags empty-state.** Accounts with no custom tags get `{ status:false, message }` from `tags/Get`; swallowed as `[]` in both the dropdown and `Organization > Get Many Tags` rather than surfacing as an exception.
+- **OAuth scope.** Dropped `custom_fields.write` — not granted to OAuth tokens today and requesting it fails the consent screen.
+
+Static mocks kept as fallback for scope errors / older SP instances.
+
+### Things deliberately NOT done (flagging for follow-up)
+
+- Splitting `File > Upload and Queue` composite into three actions (Upload, Add to Queue, Start Print). Activepieces did this; the n8n composite works but the split is cleaner UX.
+- Dropping `Webhook > Trigger Test` as a user-facing action — arguably debug-only.
+- Expanding the trigger event list to the full backend enum (~50 events; we expose 15). Add the rest once the current ones are confirmed in production.
+
 ## 0.3.7
 
 - **Bug fix: stop reading response payloads from a non-existent `objects` wrapper.** The SimplyPrint backend spreads `$this->objects` into the top level of the response via `array_merge($resp, $this->objects)` in `AjaxBaseController::respond()` — so `webhooks/Create` actually returns `{ status, message, webhook: { id, ... } }`, and list endpoints return `{ status, message, data: [...] }`, NOT `{ status, objects: { ... } }`. The n8n node was reading `res.objects?.webhook?.id` and `res.objects?.data ?? []` everywhere, which always resolved to `undefined` / `[]`. Consequences now fixed:

@@ -4,6 +4,21 @@ import { buildStartOptionsField } from '../common/startOptions';
 
 const show = { resource: ['file'] };
 
+/**
+ * File operations surfaced via OAuth2 / API-key.
+ *
+ * Intentionally NOT included:
+ *   - `File > Get` (single-file fetch): no OAuth-reachable endpoint exists —
+ *     `files/GetFiles` with a `search` filter is the way to look a single
+ *     file up, and that's exposed via Get Many.
+ *   - `File > Delete`: `files/DeleteFile` has `oauth_disabled = true`
+ *     server-side, so OAuth callers always get 403. Omitted rather than
+ *     shipped as a broken operation.
+ *
+ * The file identifier on the wire is the hex string `uid`, not a numeric id.
+ * The Move operation passes it via the `files` CSV query param on a GET to
+ * `files/MoveFiles`.
+ */
 export const fileOperations: INodeProperties[] = [
 	{
 		displayName: 'Operation',
@@ -13,28 +28,16 @@ export const fileOperations: INodeProperties[] = [
 		displayOptions: { show },
 		options: [
 			{
-				name: 'Delete',
-				value: 'delete',
-				action: 'Delete a file',
-				description: 'Delete a file permanently',
-			},
-			{
-				name: 'Get',
-				value: 'get',
-				action: 'Get a file',
-				description: 'Retrieve a file',
-			},
-			{
 				name: 'Get Many',
 				value: 'getAll',
 				action: 'Get many files',
-				description: 'Retrieve a list of files',
+				description: 'Retrieve a list of files (optionally filtered by folder or search term)',
 			},
 			{
 				name: 'Move',
 				value: 'move',
-				action: 'Move a file to another folder',
-				description: 'Move a file to another folder',
+				action: 'Move files to another folder',
+				description: 'Move one or more files to another folder',
 			},
 			{
 				name: 'Upload',
@@ -54,44 +57,49 @@ export const fileOperations: INodeProperties[] = [
 ];
 
 export const fileFields: INodeProperties[] = [
+	// getAll: optional folder filter + search
 	{
 		displayName: 'Folder ID',
 		name: 'folderId',
 		type: 'number',
-		default: 0,
+		default: -1,
 		placeholder: 'e.g. 31',
-		description: 'Zero (or blank) lists the account root',
+		description: 'Folder to list files from. -1 = all files (flat, recursive). 0 = account root. A positive integer = a specific folder ID',
 		displayOptions: {
-			show: { resource: ['file'], operation: ['getAll', 'upload', 'uploadAndQueue', 'move'] },
+			show: { resource: ['file'], operation: ['getAll', 'upload', 'uploadAndQueue'] },
 		},
 	},
 	{
-		displayName: 'File',
-		name: 'fileId',
-		type: 'resourceLocator',
-		default: { mode: 'list', value: '' },
-		required: true,
-		description: 'File to target',
-		displayOptions: { show: { resource: ['file'], operation: ['get', 'move', 'delete'] } },
-		modes: [
-			{
-				displayName: 'From List',
-				name: 'list',
-				type: 'list',
-				placeholder: 'Select a file...',
-				typeOptions: {
-					searchListMethod: 'searchFiles',
-					searchable: true,
-				},
-			},
-			{
-				displayName: 'By ID',
-				name: 'id',
-				type: 'string',
-				placeholder: 'e.g. 9128',
-			},
-		],
+		displayName: 'Search',
+		name: 'search',
+		type: 'string',
+		default: '',
+		placeholder: 'e.g. bracket',
+		description: 'Optional substring to match against file names',
+		displayOptions: { show: { resource: ['file'], operation: ['getAll'] } },
 	},
+	// move: source uids + target folder
+	{
+		displayName: 'File UIDs',
+		name: 'fileUids',
+		type: 'string',
+		default: '',
+		required: true,
+		placeholder: 'e.g. c677ebfd2de41c58eec387e3c84e7895,96b2fc6c4aaedfbe37e62b2faafb2bf6',
+		description: 'Comma-separated file UIDs (hex strings) to move. Use Get Many with a search term to look UIDs up.',
+		displayOptions: { show: { resource: ['file'], operation: ['move'] } },
+	},
+	{
+		displayName: 'Target Folder ID',
+		name: 'targetFolderId',
+		type: 'number',
+		default: 0,
+		required: true,
+		placeholder: 'e.g. 31',
+		description: 'Destination folder ID. 0 = account root.',
+		displayOptions: { show: { resource: ['file'], operation: ['move'] } },
+	},
+	// upload + uploadAndQueue
 	{
 		displayName: 'Binary Property',
 		name: 'binaryPropertyName',
@@ -110,7 +118,7 @@ export const fileFields: INodeProperties[] = [
 		default: 0,
 		required: true,
 		description:
-			'Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>',
+			'Queue group to add the upload to. Required if the account has queue groups configured. Choose from the list, or specify an ID using an <a href="https://docs.n8n.io/code/expressions/">expression</a>.',
 		displayOptions: { show: { resource: ['file'], operation: ['uploadAndQueue'] } },
 	},
 	{
@@ -139,7 +147,8 @@ export const fileFields: INodeProperties[] = [
 		placeholder: 'Add queue item custom field value',
 		typeOptions: { multipleValues: true },
 		default: {},
-		description: 'PRINT_QUEUE custom-field values to attach to the queue item. Category is inferred server-side.',
+		description:
+			'PRINT_QUEUE custom-field values to attach to the queue item. Category is inferred server-side.',
 		displayOptions: { show: { resource: ['file'], operation: ['uploadAndQueue'] } },
 		options: [
 			{
@@ -186,7 +195,8 @@ export const fileFields: INodeProperties[] = [
 		type: 'string',
 		default: '',
 		placeholder: 'e.g. 42,77',
-		description: 'Comma-separated printer IDs. When set, a print is started on each listed printer right after queuing.',
+		description:
+			'Comma-separated printer IDs. When set, a print is started on each listed printer right after queuing.',
 		displayOptions: { show: { resource: ['file'], operation: ['uploadAndQueue'] } },
 	},
 	{
@@ -196,7 +206,8 @@ export const fileFields: INodeProperties[] = [
 		placeholder: 'Add print job custom field value',
 		typeOptions: { multipleValues: true },
 		default: {},
-		description: 'PRINT_JOB custom-field values applied to the started print job(s). Ignored when no printers are selected.',
+		description:
+			'PRINT_JOB custom-field values applied to the started print job(s). Ignored when no printers are selected.',
 		displayOptions: { show: { resource: ['file'], operation: ['uploadAndQueue'] } },
 		options: [
 			{

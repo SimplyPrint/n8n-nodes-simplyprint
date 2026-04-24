@@ -160,22 +160,29 @@ export class SimplyPrint implements INodeType {
 						if (groupId) qs.group = groupId;
 						if (includeDone) qs.include_done = 1;
 						const res = await simplyprintCall(this, { method: 'GET', path: 'queue/GetItems', qs });
-						const raw = ((res as IDataObject).data ?? res) as IDataObject | IDataObject[];
+						const raw = ((res as IDataObject).queue ?? (res as IDataObject).data ?? res) as
+							| IDataObject
+							| IDataObject[];
 						result = applySimplify(raw, simplify, simplifyQueueItem);
 					} else if (operation === 'getAllGroups') {
 						const simplify = this.getNodeParameter('simplify', i, true) as boolean;
-						const res = await simplyprintCall(this, { method: 'GET', path: 'queue/GetQueueGroups' });
-						const raw = ((res as IDataObject).data ?? res) as IDataObject | IDataObject[];
+						const res = await simplyprintCall(this, { method: 'GET', path: 'queue/groups/Get' });
+						const raw = ((res as IDataObject).list ?? (res as IDataObject).data ?? res) as
+							| IDataObject
+							| IDataObject[];
 						result = applySimplify(raw, simplify, simplifyQueueGroup);
 					} else if (operation === 'addItem') {
-						const fileId = getIdParam(this, 'fileId', i);
+						// File primary id on the wire is a hex string `uid`, submitted as
+						// `filesystem` (string, not int). `fileId` on queue/AddItem is only
+						// used for the hex upload hash coming back from files.simplyprint.io.
+						const fileUid = getFileIdParam(this, 'fileId', i);
 						const groupId = this.getNodeParameter('groupId', i, 0) as number;
 						const amount = this.getNodeParameter('amount', i, 1) as number;
 						const position = this.getNodeParameter('position', i, 'bottom') as string;
 						const customFieldsRaw = this.getNodeParameter('customFields', i, {}) as IDataObject;
 						const customFields = toSubmissionArray(customFieldsRaw);
-						const body: IDataObject = { file_id: fileId, amount, position };
-						if (groupId) body.group_id = groupId;
+						const body: IDataObject = { filesystem: fileUid, amount, position };
+						if (groupId) body.group = groupId;
 						if (customFields.length > 0) body.custom_fields = customFields;
 						const res = await simplyprintCall(this, { method: 'POST', path: 'queue/AddItem', body });
 						result = res;
@@ -204,7 +211,7 @@ export class SimplyPrint implements INodeType {
 						const queueItemId = getIdParam(this, 'queueItemId', i);
 						await simplyprintCall(this, {
 							method: 'POST',
-							path: 'queue/RemoveItem',
+							path: 'queue/DeleteItem',
 							body: { job: queueItemId },
 						});
 						result = { deleted: true };
@@ -234,7 +241,9 @@ export class SimplyPrint implements INodeType {
 							method: 'GET',
 							path: 'queue/approval/GetPendingItems',
 						});
-						const raw = ((res as IDataObject).data ?? res) as IDataObject | IDataObject[];
+						const raw = ((res as IDataObject).items ?? (res as IDataObject).data ?? res) as
+							| IDataObject
+							| IDataObject[];
 						result = applySimplify(raw, simplify, simplifyQueueItem);
 					} else if (operation === 'approveItem' || operation === 'denyItem') {
 						const ids = String(this.getNodeParameter('queueItemIds', i) as string)
@@ -257,19 +266,21 @@ export class SimplyPrint implements INodeType {
 				// -------------------- file --------------------
 				else if (resource === 'file') {
 					if (operation === 'getAll') {
-						const folderId = this.getNodeParameter('folderId', i, 0) as number;
-						const qs: IDataObject = {};
-						if (folderId) qs.folder_id = folderId;
-						const res = await simplyprintCall(this, { method: 'GET', path: 'files/Get', qs });
-						result = (res as IDataObject).data ?? res;
-					} else if (operation === 'get') {
-						const fileId = getIdParam(this, 'fileId', i);
+						// files/GetFiles: f=-1 (all, flat), 0 (root), N (folder id).
+						// Response has `files: [...]` + `folders: [...]` at top level.
+						const folderId = this.getNodeParameter('folderId', i, -1) as number;
+						const search = this.getNodeParameter('search', i, '') as string;
+						const qs: IDataObject = { f: folderId };
+						if (search) {
+							qs.search = search;
+							qs.global_search = true;
+						}
 						const res = await simplyprintCall(this, {
 							method: 'GET',
-							path: 'files/Get',
-							qs: { fid: fileId },
+							path: 'files/GetFiles',
+							qs,
 						});
-						result = (res as IDataObject).data ?? res;
+						result = (res as IDataObject).files ?? (res as IDataObject).data ?? res;
 					} else if (operation === 'upload') {
 						// Upload via files.simplyprint.io (the integration-reachable
 						// file upload service). Returns a string hex file id usable as
@@ -438,40 +449,48 @@ export class SimplyPrint implements INodeType {
 							upload: uploadRes,
 						};
 					} else if (operation === 'move') {
-						const fileId = getIdParam(this, 'fileId', i);
-						const folderId = this.getNodeParameter('folderId', i, 0) as number;
-						const body: IDataObject = { id: fileId };
-						if (folderId) body.folder_id = folderId;
+						// files/MoveFiles is a GET (not POST) with query params
+						// `files` (comma-separated UID hex strings) + `folder` (int).
+						const fileUids = String(this.getNodeParameter('fileUids', i) as string).trim();
+						const targetFolder = this.getNodeParameter('targetFolderId', i, 0) as number;
+						if (!fileUids) {
+							throw new NodeOperationError(
+								this.getNode(),
+								'File > Move requires one or more file UIDs',
+								{ itemIndex: i },
+							);
+						}
 						const res = await simplyprintCall(this, {
-							method: 'POST',
-							path: 'files/Move',
-							body,
+							method: 'GET',
+							path: 'files/MoveFiles',
+							qs: { files: fileUids, folder: targetFolder },
 						});
 						result = res;
-					} else if (operation === 'delete') {
-						const fileId = getIdParam(this, 'fileId', i);
-						await simplyprintCall(this, {
-							method: 'POST',
-							path: 'files/Delete',
-							body: { id: fileId },
-						});
-						result = { deleted: true };
 					}
 				}
 
 				// -------------------- filament --------------------
 				else if (resource === 'filament') {
 					if (operation === 'getAll') {
-						const res = await simplyprintCall(this, { method: 'GET', path: 'filament/Get' });
-						result = (res as IDataObject).data ?? res;
+						// filament/GetFilament returns `{ filament: { <id>: {...} } }`
+						// — a dict keyed by id, not an array. Normalise to array.
+						const res = await simplyprintCall<{
+							filament?: Record<string, IDataObject>;
+						}>(this, {
+							method: 'GET',
+							path: 'filament/GetFilament',
+						});
+						const dict = res.filament ?? {};
+						result = Object.values(dict);
 					} else if (operation === 'get') {
+						// filament/GetSpecific returns the single filament at top level.
 						const filamentId = getIdParam(this, 'filamentId', i);
 						const res = await simplyprintCall(this, {
 							method: 'GET',
-							path: 'filament/Get',
+							path: 'filament/GetSpecific',
 							qs: { fid: filamentId },
 						});
-						result = (res as IDataObject).data ?? res;
+						result = (res as IDataObject).filament ?? (res as IDataObject).data ?? res;
 					} else if (operation === 'assign' || operation === 'unassign') {
 						const filamentId = getIdParam(this, 'filamentId', i);
 						const printerId = getIdParam(this, 'printerId', i);
@@ -508,9 +527,17 @@ export class SimplyPrint implements INodeType {
 						const raw = ((res as IDataObject).data ?? res) as IDataObject | IDataObject[];
 						result = applySimplify(raw, true, simplifyPrintHistory);
 					} else if (operation === 'getAllTags') {
-						const res = await simplyprintCall(this, { method: 'GET', path: 'tags/Get' });
-						const raw = ((res as IDataObject).data ?? res) as IDataObject | IDataObject[];
-						result = applySimplify(raw, true, simplifyTag);
+						// tags/Get returns { tags: [...] } on success. Accounts with no
+						// tags respond with { status:false, message }; swallow that as [].
+						try {
+							const res = await simplyprintCall(this, { method: 'GET', path: 'tags/Get' });
+							const raw = ((res as IDataObject).tags ?? (res as IDataObject).data ?? []) as
+								| IDataObject
+								| IDataObject[];
+							result = applySimplify(raw, true, simplifyTag);
+						} catch {
+							result = [];
+						}
 					}
 				}
 

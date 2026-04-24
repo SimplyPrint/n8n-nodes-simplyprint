@@ -3,6 +3,8 @@ import type {
 	IHookFunctions,
 	INodeType,
 	INodeTypeDescription,
+	ITriggerFunctions,
+	ITriggerResponse,
 	IWebhookFunctions,
 	IWebhookResponseData,
 } from 'n8n-workflow';
@@ -250,6 +252,66 @@ export class SimplyPrintTrigger implements INodeType {
 			},
 		},
 	};
+
+	/**
+	 * Called when the user clicks "Execute step" / "Listen for test event" in
+	 * the editor. Returns a `manualTriggerFunction` that fetches a real sample
+	 * payload from `webhooks/GetSamplePayload` so the user sees the true
+	 * shape of the event body right away — no need to wait for a live delivery
+	 * to round-trip through the webhook registration.
+	 *
+	 * The emitted shape is the full envelope a live POST would carry:
+	 * `{ webhook_id, event, timestamp, data, source }`. `source` is `"real"`
+	 * when the backend had a stored sample for this event and `"synthetic"`
+	 * when it had to build one on the fly. Matches what `webhook()` returns
+	 * on a live delivery, so the downstream workflow sees identical data in
+	 * test-mode and prod-mode runs.
+	 *
+	 * n8n only runs this in manual/test mode. In activated (live) workflows
+	 * the webhook registration in `webhookMethods.create` + the `webhook()`
+	 * handler below do the actual work.
+	 */
+	async trigger(this: ITriggerFunctions): Promise<ITriggerResponse | undefined> {
+		const event = this.getNodeParameter('event') as string;
+
+		const manualTriggerFunction = async (): Promise<void> => {
+			let sample: IDataObject | undefined;
+			try {
+				const res = await simplyprintCall<{
+					samples?: Array<{
+						webhook_id: number;
+						event: string;
+						timestamp: number;
+						data: IDataObject;
+						source?: string;
+					}>;
+				}>(this, {
+					method: 'GET',
+					path: 'webhooks/GetSamplePayload',
+					qs: { event, limit: 1 },
+				});
+				sample = res.samples?.[0] as IDataObject | undefined;
+			} catch {
+				// Older SP instances, scope errors, or network failures fall
+				// through to the synthetic fallback below rather than breaking
+				// the "Execute step" flow.
+			}
+
+			if (!sample) {
+				sample = {
+					webhook_id: 0,
+					event,
+					timestamp: Math.floor(Date.now() / 1000),
+					data: {},
+					source: 'fallback',
+				};
+			}
+
+			this.emit([this.helpers.returnJsonArray([sample])]);
+		};
+
+		return { manualTriggerFunction };
+	}
 
 	async webhook(this: IWebhookFunctions): Promise<IWebhookResponseData> {
 		const headerData = this.getHeaderData() as Record<string, string | string[] | undefined>;
