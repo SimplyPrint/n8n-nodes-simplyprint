@@ -52,16 +52,19 @@ export interface CustomField {
 }
 
 /**
- * SimplyPrint wraps every JSON response in this envelope.
- * - status: false means the call failed; `message` should explain why.
- * - objects: the endpoint-specific payload.
+ * SimplyPrint envelope for JSON responses. Payload fields are NOT nested
+ * under a wrapper key - the server spreads `$this->objects` into the top
+ * level via `array_merge($resp, $this->objects)` in AjaxBaseController, so
+ * e.g. `webhooks/Create` returns `{ status, message, webhook: {...} }`
+ * (NOT `{ status, objects: { webhook: {...} } }`) and `printers/Get` etc.
+ * return `{ status, message, data: [...] }`.
+ *
+ * The generic `T` is spread into the response type to reflect this.
  */
-export interface SimplyprintResponse<T = unknown> {
+export type SimplyprintResponse<T = Record<string, unknown>> = {
 	status: boolean;
 	message?: string;
-	objects?: T;
-	[key: string]: unknown;
-}
+} & T;
 
 /**
  * Envelope sent on incoming webhook deliveries (format = SIMPLYPRINT, default).

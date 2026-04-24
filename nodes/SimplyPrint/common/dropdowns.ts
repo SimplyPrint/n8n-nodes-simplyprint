@@ -38,7 +38,7 @@ export async function loadPrinters(this: ILoadOptionsFunctions): Promise<INodePr
 		method: 'GET',
 		path: 'printers/Get',
 	});
-	const printers = res.objects?.data ?? [];
+	const printers = res.data ?? [];
 	return printers.map((p) => ({
 		name: p.name + (p.model ? ` (${p.model})` : ''),
 		value: p.id,
@@ -53,7 +53,7 @@ export async function searchPrinters(
 		method: 'GET',
 		path: 'printers/Get',
 	});
-	const printers = res.objects?.data ?? [];
+	const printers = res.data ?? [];
 	const results: INodeListSearchItems[] = printers
 		.map((p) => ({
 			name: p.name + (p.model ? ` (${p.model})` : ''),
@@ -70,7 +70,7 @@ export async function loadQueueGroups(
 		method: 'GET',
 		path: 'queue/GetQueueGroups',
 	});
-	const groups = res.objects?.data ?? [];
+	const groups = res.data ?? [];
 	return groups.map((g) => ({ name: g.name, value: g.id }));
 }
 
@@ -79,7 +79,7 @@ export async function loadFiles(this: ILoadOptionsFunctions): Promise<INodePrope
 		method: 'GET',
 		path: 'files/Get',
 	});
-	const files = res.objects?.data ?? [];
+	const files = res.data ?? [];
 	return files.map((f) => ({ name: f.name, value: f.id }));
 }
 
@@ -91,7 +91,7 @@ export async function searchFiles(
 		method: 'GET',
 		path: 'files/Get',
 	});
-	const files = res.objects?.data ?? [];
+	const files = res.data ?? [];
 	const results: INodeListSearchItems[] = files
 		.map((f) => ({ name: f.name, value: f.id }))
 		.filter((r) => matches(filter, r.name));
@@ -105,7 +105,7 @@ export async function loadQueueItems(
 		method: 'GET',
 		path: 'queue/Get',
 	});
-	const items = res.objects?.data ?? [];
+	const items = res.data ?? [];
 	return items.map((i) => ({
 		name: i.file_name ?? `Queue item #${i.id}`,
 		value: i.id,
@@ -120,7 +120,7 @@ export async function searchQueueItems(
 		method: 'GET',
 		path: 'queue/Get',
 	});
-	const items = res.objects?.data ?? [];
+	const items = res.data ?? [];
 	const results: INodeListSearchItems[] = items
 		.map((i) => ({
 			name: i.file_name ?? `Queue item #${i.id}`,
@@ -135,7 +135,7 @@ export async function loadFilaments(this: ILoadOptionsFunctions): Promise<INodeP
 		method: 'GET',
 		path: 'filament/Get',
 	});
-	const filaments = res.objects?.data ?? [];
+	const filaments = res.data ?? [];
 	return filaments.map((f) => ({
 		name: [f.brand, f.material, f.name].filter(Boolean).join(' ') || `Filament #${f.id}`,
 		value: f.id,
@@ -150,7 +150,7 @@ export async function searchFilaments(
 		method: 'GET',
 		path: 'filament/Get',
 	});
-	const filaments = res.objects?.data ?? [];
+	const filaments = res.data ?? [];
 	const results: INodeListSearchItems[] = filaments
 		.map((f) => ({
 			name: [f.brand, f.material, f.name].filter(Boolean).join(' ') || `Filament #${f.id}`,
@@ -165,7 +165,7 @@ export async function loadTags(this: ILoadOptionsFunctions): Promise<INodeProper
 		method: 'GET',
 		path: 'tags/Get',
 	});
-	const tags = res.objects?.data ?? [];
+	const tags = res.data ?? [];
 	return tags.map((t) => ({ name: t.name, value: t.id }));
 }
 
@@ -180,7 +180,7 @@ export async function loadCustomFields(
 			method: 'GET',
 			path: 'custom_fields/Get',
 		});
-		const fields = res.objects?.data ?? [];
+		const fields = res.data ?? [];
 		return fields.map((f) => ({
 			name: `${f.name} (${f.field_type})`,
 			value: f.id,

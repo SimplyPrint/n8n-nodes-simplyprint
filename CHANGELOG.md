@@ -2,6 +2,17 @@
 
 All notable changes to `n8n-nodes-simplyprint` are documented here.
 
+## 0.3.7
+
+- **Bug fix: stop reading response payloads from a non-existent `objects` wrapper.** The SimplyPrint backend spreads `$this->objects` into the top level of the response via `array_merge($resp, $this->objects)` in `AjaxBaseController::respond()` — so `webhooks/Create` actually returns `{ status, message, webhook: { id, ... } }`, and list endpoints return `{ status, message, data: [...] }`, NOT `{ status, objects: { ... } }`. The n8n node was reading `res.objects?.webhook?.id` and `res.objects?.data ?? []` everywhere, which always resolved to `undefined` / `[]`. Consequences now fixed:
+  - Trigger `create` returned `false` so n8n never persisted the webhook id; `delete` then couldn't clean up on disable — orphan webhooks on the SP side. Matches the Activepieces integration's parser (`res.webhook?.id`) which already handled this correctly.
+  - `checkExists` couldn't confirm existing registrations and always fell through to a re-create.
+  - Every loadOptions dropdown (Printer, File, Filament, Queue Item, Queue Group, Tag, Custom Field) returned an empty list.
+  - `Printer > Get Many`, `Queue > Get Many`, `Print History`, `Tags` and similar Get Many paths emitted the full envelope instead of the array of records.
+  - `File > Upload and Queue` couldn't pick up `created_id` from `queue/AddItem`, so step 3 (start print) fell back to `file_id` instead of `queue_file`.
+- `SimplyprintResponse<T>` type rewritten as `{ status, message? } & T` to reflect the actual flat shape.
+- Tests updated to mock the correct envelope.
+
 ## 0.3.6
 
 - **Bug fix: trigger event names now match the backend `WebhookEvent` enum.** The n8n trigger node was shipping dotted-path event names (`queue.item.added`, `ai_failure.detected`, `maintenance_problem.reported`, ...) that SimplyPrint's `webhooks/Create` endpoint rejected with `events.0: Invalid enum value specified!` — so no webhook ever registered. Seven events renamed to their exact backend backing values: `queue.item.added` → `queue.add_item`, `queue.item.approved` → `queue.item_approved`, `queue.item.denied` → `queue.item_denied`, `queue.item.pending_approval` → `queue.item_pending_approval`, `ai_failure.detected` → `printer.ai_failure_detected`, `maintenance_job.overdue` → `maintenance.job_overdue`, `maintenance_problem.reported` → `maintenance.problem_reported`. Existing test-build workflows that already saved the old values need the event dropdown reselected.

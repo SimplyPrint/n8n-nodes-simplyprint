@@ -57,9 +57,11 @@ describe('SimplyPrintTrigger.webhookMethods', () => {
 			staticData: { webhookId: 555, secret: 's', event: 'job.done' },
 			httpResponder: (req) => {
 				if (req.url.endsWith('/webhooks/Get')) {
+					// SimplyPrint envelope spreads data at top level
+					// (`array_merge($resp, $this->objects)` in AjaxBaseController).
 					return {
 						status: true,
-						objects: { data: [{ id: 555, url: 'https://n8n.test/webhook/abc' }] },
+						data: [{ id: 555, url: 'https://n8n.test/webhook/abc' }],
 					};
 				}
 				return { status: true, company: { id: 77 } };
@@ -74,7 +76,7 @@ describe('SimplyPrintTrigger.webhookMethods', () => {
 			staticData: { webhookId: 1, secret: 's', event: 'job.done' },
 			httpResponder: (req) => {
 				if (req.url.endsWith('/webhooks/Get')) {
-					return { status: true, objects: { data: [] } };
+					return { status: true, data: [] };
 				}
 				return { status: true, company: { id: 77 } };
 			},
@@ -101,7 +103,7 @@ describe('SimplyPrintTrigger.webhookMethods', () => {
 		const { ctx, staticData, httpRequestWithAuthentication } = mockContext({
 			httpResponder: (req) => {
 				if (req.url.endsWith('/webhooks/Create')) {
-					return { status: true, objects: { webhook: { id: 999 } } };
+					return { status: true, webhook: { id: 999 } };
 				}
 				return { status: true, company: { id: 77 } };
 			},
@@ -129,7 +131,7 @@ describe('SimplyPrintTrigger.webhookMethods', () => {
 		const { ctx, staticData } = mockContext({
 			httpResponder: (req) => {
 				if (req.url.endsWith('/webhooks/Create')) {
-					return { status: true, objects: {} };
+					return { status: true };
 				}
 				return { status: true, company: { id: 77 } };
 			},

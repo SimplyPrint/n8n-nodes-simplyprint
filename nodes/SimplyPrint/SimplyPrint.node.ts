@@ -115,7 +115,7 @@ export class SimplyPrint implements INodeType {
 					if (operation === 'getAll') {
 						const simplify = this.getNodeParameter('simplify', i, true) as boolean;
 						const res = await simplyprintCall(this, { method: 'GET', path: 'printers/Get' });
-						const raw = (res.objects ?? res) as IDataObject | IDataObject[];
+						const raw = ((res as IDataObject).data ?? res) as IDataObject | IDataObject[];
 						result = applySimplify(raw, simplify, simplifyPrinter);
 					} else if (operation === 'get') {
 						const simplify = this.getNodeParameter('simplify', i, true) as boolean;
@@ -125,7 +125,7 @@ export class SimplyPrint implements INodeType {
 							path: 'printers/Get',
 							qs: { pid: printerId },
 						});
-						const raw = (res.objects ?? res) as IDataObject | IDataObject[];
+						const raw = ((res as IDataObject).data ?? res) as IDataObject | IDataObject[];
 						result = applySimplify(raw, simplify, simplifyPrinter);
 					} else if (operation === 'pause' || operation === 'resume' || operation === 'cancel') {
 						const printerId = getIdParam(this, 'printerId', i);
@@ -160,12 +160,12 @@ export class SimplyPrint implements INodeType {
 						if (groupId) qs.group = groupId;
 						if (includeDone) qs.include_done = 1;
 						const res = await simplyprintCall(this, { method: 'GET', path: 'queue/GetItems', qs });
-						const raw = (res.objects ?? res) as IDataObject | IDataObject[];
+						const raw = ((res as IDataObject).data ?? res) as IDataObject | IDataObject[];
 						result = applySimplify(raw, simplify, simplifyQueueItem);
 					} else if (operation === 'getAllGroups') {
 						const simplify = this.getNodeParameter('simplify', i, true) as boolean;
 						const res = await simplyprintCall(this, { method: 'GET', path: 'queue/GetQueueGroups' });
-						const raw = (res.objects ?? res) as IDataObject | IDataObject[];
+						const raw = ((res as IDataObject).data ?? res) as IDataObject | IDataObject[];
 						result = applySimplify(raw, simplify, simplifyQueueGroup);
 					} else if (operation === 'addItem') {
 						const fileId = getIdParam(this, 'fileId', i);
@@ -234,7 +234,7 @@ export class SimplyPrint implements INodeType {
 							method: 'GET',
 							path: 'queue/approval/GetPendingItems',
 						});
-						const raw = (res.objects ?? res) as IDataObject | IDataObject[];
+						const raw = ((res as IDataObject).data ?? res) as IDataObject | IDataObject[];
 						result = applySimplify(raw, simplify, simplifyQueueItem);
 					} else if (operation === 'approveItem' || operation === 'denyItem') {
 						const ids = String(this.getNodeParameter('queueItemIds', i) as string)
@@ -261,7 +261,7 @@ export class SimplyPrint implements INodeType {
 						const qs: IDataObject = {};
 						if (folderId) qs.folder_id = folderId;
 						const res = await simplyprintCall(this, { method: 'GET', path: 'files/Get', qs });
-						result = res.objects ?? res;
+						result = (res as IDataObject).data ?? res;
 					} else if (operation === 'get') {
 						const fileId = getIdParam(this, 'fileId', i);
 						const res = await simplyprintCall(this, {
@@ -269,7 +269,7 @@ export class SimplyPrint implements INodeType {
 							path: 'files/Get',
 							qs: { fid: fileId },
 						});
-						result = res.objects ?? res;
+						result = (res as IDataObject).data ?? res;
 					} else if (operation === 'upload') {
 						// Upload via files.simplyprint.io (the integration-reachable
 						// file upload service). Returns a string hex file id usable as
@@ -402,13 +402,11 @@ export class SimplyPrint implements INodeType {
 							path: 'queue/AddItem',
 							body: addBody,
 						});
+						// queue/AddItem returns `{ status, message, created_id, approval_status }`
+						// flat at top level (envelope spread via AjaxBaseController::respond).
 						const queueItemRaw = (addRes ?? {}) as IDataObject;
-						const queueObjects = (queueItemRaw.objects ?? {}) as IDataObject;
 						const queueItemId = Number(
-							queueItemRaw.created_id ??
-								queueObjects.created_id ??
-								queueObjects.id ??
-								0,
+							queueItemRaw.created_id ?? queueItemRaw.id ?? 0,
 						);
 
 						// Step 3 (optional): start print on printers.
@@ -465,7 +463,7 @@ export class SimplyPrint implements INodeType {
 				else if (resource === 'filament') {
 					if (operation === 'getAll') {
 						const res = await simplyprintCall(this, { method: 'GET', path: 'filament/Get' });
-						result = res.objects ?? res;
+						result = (res as IDataObject).data ?? res;
 					} else if (operation === 'get') {
 						const filamentId = getIdParam(this, 'filamentId', i);
 						const res = await simplyprintCall(this, {
@@ -473,7 +471,7 @@ export class SimplyPrint implements INodeType {
 							path: 'filament/Get',
 							qs: { fid: filamentId },
 						});
-						result = res.objects ?? res;
+						result = (res as IDataObject).data ?? res;
 					} else if (operation === 'assign' || operation === 'unassign') {
 						const filamentId = getIdParam(this, 'filamentId', i);
 						const printerId = getIdParam(this, 'printerId', i);
@@ -501,17 +499,17 @@ export class SimplyPrint implements INodeType {
 							method: 'GET',
 							path: 'account/GetStatistics',
 						});
-						result = res.objects ?? res;
+						result = (res as IDataObject).data ?? res;
 					} else if (operation === 'getAllPrintHistory') {
 						const res = await simplyprintCall(this, {
 							method: 'GET',
 							path: 'print_history/Get',
 						});
-						const raw = (res.objects ?? res) as IDataObject | IDataObject[];
+						const raw = ((res as IDataObject).data ?? res) as IDataObject | IDataObject[];
 						result = applySimplify(raw, true, simplifyPrintHistory);
 					} else if (operation === 'getAllTags') {
 						const res = await simplyprintCall(this, { method: 'GET', path: 'tags/Get' });
-						const raw = (res.objects ?? res) as IDataObject | IDataObject[];
+						const raw = ((res as IDataObject).data ?? res) as IDataObject | IDataObject[];
 						result = applySimplify(raw, true, simplifyTag);
 					}
 				}
@@ -523,7 +521,7 @@ export class SimplyPrint implements INodeType {
 							method: 'GET',
 							path: 'custom_fields/Get',
 						});
-						result = res.objects ?? res;
+						result = (res as IDataObject).data ?? res;
 					} else if (operation === 'setValues') {
 						const category = this.getNodeParameter('category', i, 'print') as string;
 						const subCategory = this.getNodeParameter('subCategory', i, '') as string;

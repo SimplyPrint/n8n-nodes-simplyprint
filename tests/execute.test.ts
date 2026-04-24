@@ -63,9 +63,12 @@ describe('SimplyPrint.execute > printer', () => {
 			},
 			(req) => {
 				if (req.url.endsWith('/printers/Get')) {
+					// Single-printer GET. Envelope spreads top level; our execute()
+					// reads `res.data` (falls back to `res` when a single printer
+					// is returned as a bare object rather than a list).
 					return {
 						status: true,
-						objects: {
+						data: {
 							id: 42,
 							name: 'Voron 2.4',
 							model: 'Voron 2.4 300',
@@ -102,7 +105,7 @@ describe('SimplyPrint.execute > printer', () => {
 			{ resource: 'printer', operation: 'getAll', simplify: false },
 			() => ({
 				status: true,
-				objects: [
+				data: [
 					{ id: 1, name: 'A', internal: true, debug: 'x' },
 					{ id: 2, name: 'B', internal: false, debug: 'y' },
 				],

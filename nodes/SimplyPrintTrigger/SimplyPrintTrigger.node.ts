@@ -181,7 +181,7 @@ export class SimplyPrintTrigger implements INodeType {
 						this,
 						{ method: 'GET', path: 'webhooks/Get' },
 					);
-					const hooks = res.objects?.data ?? [];
+					const hooks = res.data ?? [];
 					const exists = hooks.some(
 						(h) => h.id === workflowData.webhookId && (!h.url || h.url === webhookUrl),
 					);
@@ -220,7 +220,7 @@ export class SimplyPrintTrigger implements INodeType {
 					},
 				});
 
-				const webhookId = res.objects?.webhook?.id;
+				const webhookId = res.webhook?.id;
 				if (!webhookId) return false;
 
 				const workflowData = this.getWorkflowStaticData('node') as StoredWebhook;
