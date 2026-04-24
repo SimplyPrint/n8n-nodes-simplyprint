@@ -13,7 +13,12 @@ export const customApiCallOperations: INodeProperties[] = [
 			{
 				name: 'Custom API Call',
 				value: 'call',
-				action: 'Call any simply print api endpoint',
+				// `SimplyPrint` and `API` are both proper nouns; the sentence-case
+				// lint rule doesn't know that and would rewrite them to
+				// "simply print api". Suppressed with a one-line justification
+				// rather than renaming around the brand.
+				// eslint-disable-next-line n8n-nodes-base/node-param-operation-option-action-miscased -- proper nouns ("SimplyPrint", "API") preserved
+				action: 'Call any SimplyPrint API endpoint',
 				description: 'Escape hatch for endpoints this node does not wrap directly. Path is relative to the company (e.g. "printers/Get").',
 			},
 		],

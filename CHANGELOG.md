@@ -2,6 +2,10 @@
 
 All notable changes to `n8n-nodes-simplyprint` are documented here.
 
+## 0.3.10
+
+- **Brand name fix.** The Custom API Call action was showing as "Call any simply print api endpoint" in the Node Creator. The `node-param-operation-option-action-miscased` lint rule had autofixed "SimplyPrint API" -> "simply print api" in an earlier pass. Restored to "Call any SimplyPrint API endpoint" with an eslint-disable-next-line and a one-line justification (proper nouns preserved).
+
 ## 0.3.9
 
 Finishing the Activepieces-parity pass — the three items 0.3.8 deliberately deferred.
