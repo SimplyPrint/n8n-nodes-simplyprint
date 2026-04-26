@@ -41,9 +41,9 @@ export class SimplyPrintOAuth2Api implements ICredentialType {
 			displayName: 'Panel URL',
 			name: 'panelUrl',
 			type: 'string',
-			default: 'https://test.simplyprint.io',
+			default: 'https://simplyprint.io',
 			description:
-				'SimplyPrint panel base URL. This beta build points at https://test.simplyprint.io; change to https://simplyprint.io for production.',
+				'SimplyPrint panel base URL. Defaults to production. Override to https://test.simplyprint.io for the staging environment.',
 		},
 		{
 			displayName: 'Client ID',

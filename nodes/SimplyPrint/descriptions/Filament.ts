@@ -83,7 +83,7 @@ export const filamentFields: INodeProperties[] = [
 		default: { mode: 'list', value: '' },
 		required: true,
 		description: 'Printer to assign the filament to',
-		displayOptions: { show: { resource: ['filament'], operation: ['assign', 'unassign'] } },
+		displayOptions: { show: { resource: ['filament'], operation: ['assign'] } },
 		modes: [
 			{
 				displayName: 'From List',
@@ -111,5 +111,25 @@ export const filamentFields: INodeProperties[] = [
 				],
 			},
 		],
+	},
+	{
+		displayName: 'Nozzle',
+		name: 'nozzle',
+		type: 'number',
+		default: 0,
+		typeOptions: { minValue: 0 },
+		description:
+			'Zero-based nozzle index on the printer. Single-nozzle printers leave this at 0; multi-nozzle setups (e.g. IDEX, H2D) use 1+ for the secondary nozzle.',
+		displayOptions: { show: { resource: ['filament'], operation: ['assign'] } },
+	},
+	{
+		displayName: 'Extruder',
+		name: 'extruder',
+		type: 'number',
+		default: 0,
+		typeOptions: { minValue: 0 },
+		description:
+			'Zero-based extruder index on the chosen nozzle. Direct-drive printers leave this at 0; AMS / multi-material setups use 1, 2, 3 for the additional lanes.',
+		displayOptions: { show: { resource: ['filament'], operation: ['assign'] } },
 	},
 ];

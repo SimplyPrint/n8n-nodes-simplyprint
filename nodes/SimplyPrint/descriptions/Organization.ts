@@ -39,4 +39,25 @@ export const organizationOperations: INodeProperties[] = [
 	},
 ];
 
-export const organizationFields: INodeProperties[] = [];
+export const organizationFields: INodeProperties[] = [
+	{
+		displayName: 'Start Date',
+		name: 'startDate',
+		type: 'string',
+		default: '',
+		placeholder: 'e.g. 1714521600',
+		description:
+			'Optional start of the reporting window, as a Unix epoch timestamp (seconds). Leave blank to use the account default ("general" stats covering the last week).',
+		displayOptions: { show: { resource: ['organization'], operation: ['getStatistics'] } },
+	},
+	{
+		displayName: 'End Date',
+		name: 'endDate',
+		type: 'string',
+		default: '',
+		placeholder: 'e.g. 1717113600',
+		description:
+			'Optional end of the reporting window, as a Unix epoch timestamp (seconds). Required when Start Date is set.',
+		displayOptions: { show: { resource: ['organization'], operation: ['getStatistics'] } },
+	},
+];

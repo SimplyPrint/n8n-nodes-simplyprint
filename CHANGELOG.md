@@ -2,6 +2,41 @@
 
 All notable changes to `n8n-nodes-simplyprint` are documented here.
 
+## 0.4.0
+
+End-to-end audit pass mirroring the work the Activepieces piece received in 0.5.10. SimplyPrint's `AjaxBaseController` keeps `$_POST` (request body) and `$_GET` (URL query string) strictly separate; they are NOT merged. Endpoints declare which scope each field comes from, and helpers like `RequirePrinter()` / `RequireFilament()` default to `$_GET`. Several actions in 0.3.x had been calling endpoints with the right field names but in the wrong scope, which the backend silently dropped. Other endpoints had the wrong path entirely and were 404-ing. None of these surfaced as obvious errors in the n8n UI: toggles never took effect, and reads returned empty.
+
+### Production panel URL is now the default
+
+`Panel URL` on both the OAuth2 and API-key credentials now defaults to `https://simplyprint.io` (was `https://test.simplyprint.io`, a beta-leftover from the 0.3.5 staff test build). Existing credentials are unaffected; the change only applies to newly created connections.
+
+### Wire-format fixes (POST body → URL query string)
+
+- **Queue > Update Item** (`queue/UpdateItem`): `job` moved to query string. `amount` and `note` stay in body. The 0.3.x body-only shape was failing the `RequireQueueItem` helper.
+- **Queue > Move Item** (`queue/MoveItem`): `job`/`to` (body) → `jobs`/`moveTo` (query string). The body shape was silently dropped at validation; field names also changed (plural `jobs`, camelCase `moveTo`).
+- **Queue > Remove Item** (`queue/DeleteItem`): `job` moved to query string.
+- **Queue > Revive Item** (`queue/ReviveItem`): `job` moved to query string.
+- **Queue > Approve Item / Deny Item** (`queue/approval/{ApproveItem,DenyItem}`): `jobs` moved to query string as a comma-separated string. `comment` stays in body. **Deny Item** also gets a new `Request Revision` toggle: backend semantics are `remove:true` deletes the item, `remove:false` keeps it as DENIED so the submitter can revise. Default behaviour matches the previous "deny = drop" assumption.
+- **Queue > Empty** (`queue/EmptyQueue`): body fields renamed `group_id` → `group` and `include_done` → `done_items`. The "Include Done" toggle had never had any effect; backend was unconditionally hitting the active-queue path.
+- **Filament > Assign** (`filament/Assign`): `pid` and `fid` moved to query string. `RequirePrinter()` / `RequireFilaments()` default to reading from `$_GET`. The action now also surfaces **Nozzle** and **Extruder** fields (both default to 0) so multi-tool printers (IDEX, H2D) and multi-material setups (AMS lanes) can be targeted. Sent on the wire as the new-API body shape `{ filament: { <fid>: { nozzle, extruder } } }`; the legacy body-only shape on this endpoint hardcodes nozzle to 0.
+- **Filament > Unassign** (`filament/Unassign`): `fid` moved to query string. The `pid` field is no longer surfaced in the UI; backend resolves the printer from the spool's current assignment, so the user only picks the spool. Saved values from 0.3.x workflows are preserved in the workflow JSON but ignored on execute.
+- **Filament > Get** (`filament/GetSpecific`): query param renamed `fid` → `id`. Backend reads `id` (numeric) or `uid` (4-character short id) from `$_GET`; `fid` was silently dropped. Response key is `data` (was reading `filament` first, which works on the legacy GetFilament endpoint but not GetSpecific).
+- **Print Job > Create** (`printers/actions/CreateJob`): printer ids moved from query string to POST body as `pid` (CSV). `CreateJob.php` calls `RequirePrinters(self::POST, ...)` and reads the body only.
+
+### Wrong-endpoint fixes
+
+- **Organization > Get Many Print History** was hitting `GET /print_history/Get`. That path **does not exist** (404; there is no `api/API/Endpoints/print_history/` directory). Now uses `POST /jobs/GetPaginatedPrintJobs` with `{page: 1}` in the body. Response key is `data`. Heavier responses can be filtered/paged in the upcoming 0.5.0 expansion.
+- **Organization > Get Statistics** switched from `GET account/GetStatistics` to `POST account/GetStatistics` with `{general: true}` in the body. The validator requires `general:true` OR a `start_date`/`end_date` pair (`required_unless:general,true`); the GET-with-no-body shape was failing validation outright. Response envelope key is `statistics`.
+
+### Method/scope changes (coverage)
+
+- **Printer > Get Many / Get One** switched from GET to POST. The GET path caps `page_size` at 25 (panel's hard limit); POST allows 100. Big farms now come back in fewer round-trips.
+- **Filament > Get Many** + the filament dropdowns switched to POST with `{compact: true}` in the body. The `compact` flag is read from `$_POST` only; the 0.3.x query param landed in `$_GET` and was silently ignored, returning the heavy panel-shape (filament dict keyed by id) instead of the flat compact list. The `Object.values()` workaround in the dropdown loaders is now unnecessary; both shapes are still tolerated as a defensive fallback.
+
+### Internal
+
+- Webhook signature verification was already using `crypto.timingSafeEqual` against equal-length buffers (no change required).
+
 ## 0.3.11
 
 - **Brand name fix (round 2).** Same class of bug as 0.3.10 — the sentence-case lint autofixer had lowercased "AutoPrint" (a SimplyPrint trademark) to "autoprint" on two trigger actions (`Printer autoprint state changed`, `Company autoprint state changed`). Restored with per-line eslint suppressions, same pattern as the Custom API Call fix.

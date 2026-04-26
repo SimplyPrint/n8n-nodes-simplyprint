@@ -287,6 +287,15 @@ export const queueFields: INodeProperties[] = [
 		description: 'Optional comment to attach to the approval or denial',
 		displayOptions: { show: { resource: ['queue'], operation: ['approveItem', 'denyItem'] } },
 	},
+	{
+		displayName: 'Request Revision',
+		name: 'requestRevision',
+		type: 'boolean',
+		default: false,
+		description:
+			'Whether to keep the item in DENIED state so the submitter can revise. When off (default), the item is removed from the queue.',
+		displayOptions: { show: { resource: ['queue'], operation: ['denyItem'] } },
+	},
 	customFieldFixedCollection(
 		'Custom Fields',
 		'PRINT_QUEUE custom-field values to attach to the new queue item. Category is inferred server-side.',

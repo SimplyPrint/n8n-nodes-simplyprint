@@ -15,10 +15,12 @@ import type { Filament, Tag, CustomField } from './types';
  * envelope — no `objects` wrapper):
  *
  *   - `printers/Get`          -> `data: [{ id, sort_order, printer: { name, state, group, model }, filament, job }]`
+ *                                POST is preferred. GET caps `page_size` at 25 while POST allows 100.
  *   - `queue/groups/Get`      -> `list: [{ id, name }]` + `groups_exist: bool`
  *   - `queue/GetItems`        -> `queue: [{ id, filename, group, sort_order, ... }]`
  *   - `files/GetFiles`        -> `files: [{ uid, name, ... }]`, query param `f` (-1 = all, 0 = root, N = folder id)
- *   - `filament/GetFilament`  -> `filament: { <id>: { id, brand, material, name, ... } }` (dict keyed by id, not an array)
+ *   - `filament/GetFilament`  -> POST + `compact:true` returns `filament: [...]` (flat array). The legacy
+ *                                GET path returns `filament: { <id>: {...} }` (dict keyed by id).
  *   - `tags/Get`              -> `tags: [{ id, name, color }]` on success; `{ status:false, message }` when no tags exist
  *   - `custom_fields/Get`     -> `data: [{ id, name, field_type, entity }]`, OAuth callers get 403 today
  */
@@ -52,8 +54,9 @@ function printerDisplayName(row: PrinterRow): string {
 
 export async function loadPrinters(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
 	const res = await simplyprintCall<{ data?: PrinterRow[] }>(this, {
-		method: 'GET',
+		method: 'POST',
 		path: 'printers/Get',
+		body: { page: 1, page_size: 100 },
 	});
 	const printers = res.data ?? [];
 	return printers.map((p) => ({
@@ -67,8 +70,9 @@ export async function searchPrinters(
 	filter?: string,
 ): Promise<INodeListSearchResult> {
 	const res = await simplyprintCall<{ data?: PrinterRow[] }>(this, {
-		method: 'GET',
+		method: 'POST',
 		path: 'printers/Get',
+		body: { page: 1, page_size: 100 },
 	});
 	const printers = res.data ?? [];
 	const results: INodeListSearchItems[] = printers
@@ -170,34 +174,38 @@ export async function searchQueueItems(
 }
 
 // ---------- Filaments ----------
-// `filament/GetFilament` returns `{ filament: { <id>: { id, brand, material, name, ... } } }`
-// — a dictionary keyed by id, not an array. Normalise to an array here.
-export async function loadFilaments(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
-	const res = await simplyprintCall<{ filament?: Record<string, Filament> }>(this, {
-		method: 'GET',
+// POST + `compact:true` returns `filament: [...]` (flat array). The `compact`
+// flag is read from $_POST only. Passing it as a query string lands in $_GET
+// and is silently ignored, returning the heavy panel-shape (filament dict
+// keyed by id) instead of the flat compact list.
+function filamentLabel(f: Filament): string {
+	return [f.brand, f.material, f.name].filter(Boolean).join(' ') || `Filament #${f.id}`;
+}
+
+async function fetchCompactFilaments(ctx: ILoadOptionsFunctions): Promise<Filament[]> {
+	const res = await simplyprintCall<{ filament?: Filament[] | Record<string, Filament> }>(ctx, {
+		method: 'POST',
 		path: 'filament/GetFilament',
+		body: { compact: true },
 	});
-	const filaments = Object.values(res.filament ?? {});
-	return filaments.map((f) => ({
-		name: [f.brand, f.material, f.name].filter(Boolean).join(' ') || `Filament #${f.id}`,
-		value: f.id,
-	}));
+	const f = res.filament;
+	if (Array.isArray(f)) return f;
+	if (f && typeof f === 'object') return Object.values(f);
+	return [];
+}
+
+export async function loadFilaments(this: ILoadOptionsFunctions): Promise<INodePropertyOptions[]> {
+	const filaments = await fetchCompactFilaments(this);
+	return filaments.map((f) => ({ name: filamentLabel(f), value: f.id }));
 }
 
 export async function searchFilaments(
 	this: ILoadOptionsFunctions,
 	filter?: string,
 ): Promise<INodeListSearchResult> {
-	const res = await simplyprintCall<{ filament?: Record<string, Filament> }>(this, {
-		method: 'GET',
-		path: 'filament/GetFilament',
-	});
-	const filaments = Object.values(res.filament ?? {});
+	const filaments = await fetchCompactFilaments(this);
 	const results: INodeListSearchItems[] = filaments
-		.map((f) => ({
-			name: [f.brand, f.material, f.name].filter(Boolean).join(' ') || `Filament #${f.id}`,
-			value: f.id,
-		}))
+		.map((f) => ({ name: filamentLabel(f), value: f.id }))
 		.filter((r) => matches(filter, r.name));
 	return { results };
 }

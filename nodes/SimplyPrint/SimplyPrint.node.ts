@@ -113,15 +113,24 @@ export class SimplyPrint implements INodeType {
 				// -------------------- printer --------------------
 				if (resource === 'printer') {
 					if (operation === 'getAll') {
+						// printers/Get GET caps page_size at 25; POST allows 100. Switch
+						// to POST so big farms come back in fewer round-trips. Response
+						// key is still `data` either way.
 						const simplify = this.getNodeParameter('simplify', i, true) as boolean;
-						const res = await simplyprintCall(this, { method: 'GET', path: 'printers/Get' });
+						const res = await simplyprintCall(this, {
+							method: 'POST',
+							path: 'printers/Get',
+							body: { page: 1, page_size: 100 },
+						});
 						const raw = ((res as IDataObject).data ?? res) as IDataObject | IDataObject[];
 						result = applySimplify(raw, simplify, simplifyPrinter);
 					} else if (operation === 'get') {
+						// Single-printer fetch: `pid` works in either scope on this
+						// endpoint, but we use POST to match getAll for consistency.
 						const simplify = this.getNodeParameter('simplify', i, true) as boolean;
 						const printerId = getIdParam(this, 'printerId', i);
 						const res = await simplyprintCall(this, {
-							method: 'GET',
+							method: 'POST',
 							path: 'printers/Get',
 							qs: { pid: printerId },
 						});
@@ -176,7 +185,7 @@ export class SimplyPrint implements INodeType {
 						//   - `filesystem`: hex UID of a user-file already in the library
 						//     (string). Matches `files/GetFiles` `uid` fields.
 						//   - `fileId`: hex bucket-hash returned by `files/Upload` via
-						//     files.simplyprint.io — a fresh upload that has not been
+						//     files.simplyprint.io - a fresh upload that has not been
 						//     persisted to a user-file row yet.
 						// We surface both shapes through the `fileSource` selector.
 						const fileSource = this.getNodeParameter(
@@ -224,48 +233,61 @@ export class SimplyPrint implements INodeType {
 						const res = await simplyprintCall(this, { method: 'POST', path: 'queue/AddItem', body });
 						result = res;
 					} else if (operation === 'updateItem') {
+						// queue/UpdateItem reads `job` from $_GET (get_validation),
+						// while `amount` and `note` belong in $_POST (post_validation).
+						// Sending `job` in the body silently drops it and the request
+						// fails further down at the RequireQueueItem helper.
 						const queueItemId = getIdParam(this, 'queueItemId', i);
 						const amount = this.getNodeParameter('amount', i, 1) as number;
 						const note = this.getNodeParameter('note', i, '') as string;
-						const body: IDataObject = { job: queueItemId, amount };
+						const body: IDataObject = { amount };
 						if (note) body.note = note;
 						const res = await simplyprintCall(this, {
 							method: 'POST',
 							path: 'queue/UpdateItem',
+							qs: { job: queueItemId },
 							body,
 						});
 						result = res;
 					} else if (operation === 'moveItem') {
+						// queue/MoveItem reads `jobs` (CSV; note plural) and `moveTo`
+						// from $_GET. The legacy `body.{ job, to }` shape is silently
+						// dropped at the validator.
 						const queueItemId = getIdParam(this, 'queueItemId', i);
 						const toPosition = this.getNodeParameter('toPosition', i) as number;
 						const res = await simplyprintCall(this, {
 							method: 'POST',
 							path: 'queue/MoveItem',
-							body: { job: queueItemId, to: toPosition },
+							qs: { jobs: String(queueItemId), moveTo: toPosition },
 						});
 						result = res;
 					} else if (operation === 'removeItem') {
+						// queue/DeleteItem reads `job` (or `jobs` CSV) from $_GET.
 						const queueItemId = getIdParam(this, 'queueItemId', i);
 						await simplyprintCall(this, {
 							method: 'POST',
 							path: 'queue/DeleteItem',
-							body: { job: queueItemId },
+							qs: { job: queueItemId },
 						});
 						result = { deleted: true };
 					} else if (operation === 'reviveItem') {
+						// queue/ReviveItem reads `job` from $_GET.
 						const queueItemId = getIdParam(this, 'queueItemId', i);
 						const res = await simplyprintCall(this, {
 							method: 'POST',
 							path: 'queue/ReviveItem',
-							body: { job: queueItemId },
+							qs: { job: queueItemId },
 						});
 						result = res;
 					} else if (operation === 'empty') {
+						// queue/EmptyQueue post_validation: `group` (not `group_id`) and
+						// `done_items` (not `include_done`). The 0.3.x shape was silently
+						// no-opping; the toggle had never had any effect.
 						const groupId = this.getNodeParameter('groupId', i, 0) as number;
 						const includeDone = this.getNodeParameter('includeDone', i, false) as boolean;
 						const body: IDataObject = {};
-						if (groupId) body.group_id = groupId;
-						if (includeDone) body.include_done = true;
+						if (groupId) body.group = groupId;
+						if (includeDone) body.done_items = true;
 						await simplyprintCall(this, {
 							method: 'POST',
 							path: 'queue/EmptyQueue',
@@ -283,17 +305,38 @@ export class SimplyPrint implements INodeType {
 							| IDataObject[];
 						result = applySimplify(raw, simplify, simplifyQueueItem);
 					} else if (operation === 'approveItem' || operation === 'denyItem') {
+						// queue/approval/{ApproveItem,DenyItem} read `jobs` (CSV) from
+						// $_GET; only `comment` and (Deny only) `remove` go in the body.
 						const ids = String(this.getNodeParameter('queueItemIds', i) as string)
 							.split(',')
 							.map((s) => Number(s.trim()))
 							.filter((n) => Number.isFinite(n) && n > 0);
+						if (ids.length === 0) {
+							throw new NodeOperationError(
+								this.getNode(),
+								`queue.${operation} requires at least one queue item id`,
+								{ itemIndex: i },
+							);
+						}
 						const comment = this.getNodeParameter('comment', i, '') as string;
 						const endpoint = operation === 'approveItem' ? 'ApproveItem' : 'DenyItem';
-						const body: IDataObject = { jobs: ids };
+						const body: IDataObject = {};
 						if (comment) body.comment = comment;
+						if (operation === 'denyItem') {
+							// Backend semantics: `remove:true` deletes the item, `remove:false`
+							// keeps it as DENIED so the submitter can revise. Default is
+							// "remove" (matches the 0.3.x assumption that deny = drop).
+							const requestRevision = this.getNodeParameter(
+								'requestRevision',
+								i,
+								false,
+							) as boolean;
+							body.remove = !requestRevision;
+						}
 						const res = await simplyprintCall(this, {
 							method: 'POST',
 							path: `queue/approval/${endpoint}`,
+							qs: { jobs: ids.join(',') },
 							body,
 						});
 						result = res;
@@ -386,33 +429,71 @@ export class SimplyPrint implements INodeType {
 				// -------------------- filament --------------------
 				else if (resource === 'filament') {
 					if (operation === 'getAll') {
-						// filament/GetFilament returns `{ filament: { <id>: {...} } }`
-						// — a dict keyed by id, not an array. Normalise to array.
+						// filament/GetFilament reads `compact` from $_POST only. Passing
+						// it via query string lands in $_GET and is ignored, returning
+						// the heavy panel-shape (filament dict keyed by id) instead of
+						// the flat compact list. POST + compact:true yields a flat array
+						// under `filament`.
 						const res = await simplyprintCall<{
-							filament?: Record<string, IDataObject>;
+							filament?: IDataObject[] | Record<string, IDataObject>;
 						}>(this, {
-							method: 'GET',
+							method: 'POST',
 							path: 'filament/GetFilament',
+							body: { compact: true },
 						});
-						const dict = res.filament ?? {};
-						result = Object.values(dict);
+						const f = res.filament;
+						if (Array.isArray(f)) {
+							result = f;
+						} else if (f && typeof f === 'object') {
+							// Defensive fallback: older deployments may still return the
+							// dict shape. Normalise to array.
+							result = Object.values(f);
+						} else {
+							result = [];
+						}
 					} else if (operation === 'get') {
-						// filament/GetSpecific returns the single filament at top level.
+						// filament/GetSpecific reads `id` (numeric) or `uid` (4-char
+						// short id) from $_GET; sending `fid` was silently dropped.
+						// Response key is `data` (not `filament`).
 						const filamentId = getIdParam(this, 'filamentId', i);
 						const res = await simplyprintCall(this, {
 							method: 'GET',
 							path: 'filament/GetSpecific',
-							qs: { fid: filamentId },
+							qs: { id: filamentId },
 						});
-						result = (res as IDataObject).filament ?? (res as IDataObject).data ?? res;
-					} else if (operation === 'assign' || operation === 'unassign') {
+						result = (res as IDataObject).data ?? (res as IDataObject).filament ?? res;
+					} else if (operation === 'assign') {
+						// filament/Assign uses RequirePrinter() + RequireFilaments()
+						// which both default to reading from $_GET, so pid/fid travel
+						// in the query string. The body's `filament[<fid>]` mapping
+						// is the new-API shape: Assign.php's "old API" body.extruder
+						// path only supports extruder (nozzle is hardcoded 0), so we
+						// always emit the new shape to expose both. Single-nozzle
+						// direct-drive printers leave both at 0 (the default).
 						const filamentId = getIdParam(this, 'filamentId', i);
 						const printerId = getIdParam(this, 'printerId', i);
-						const endpoint = operation === 'assign' ? 'Assign' : 'Unassign';
+						const nozzle = this.getNodeParameter('nozzle', i, 0) as number;
+						const extruder = this.getNodeParameter('extruder', i, 0) as number;
 						const res = await simplyprintCall(this, {
 							method: 'POST',
-							path: `filament/${endpoint}`,
-							body: { pid: printerId, fid: filamentId },
+							path: 'filament/Assign',
+							qs: { pid: printerId, fid: filamentId },
+							body: {
+								filament: {
+									[String(filamentId)]: { nozzle, extruder },
+								},
+							},
+						});
+						result = res;
+					} else if (operation === 'unassign') {
+						// filament/Unassign only needs the spool id; backend resolves
+						// the printer from the spool's current assignment. Reads `fid`
+						// from $_GET via RequireFilament().
+						const filamentId = getIdParam(this, 'filamentId', i);
+						const res = await simplyprintCall(this, {
+							method: 'POST',
+							path: 'filament/Unassign',
+							qs: { fid: filamentId },
 						});
 						result = res;
 					}
@@ -428,15 +509,32 @@ export class SimplyPrint implements INodeType {
 						});
 						result = res;
 					} else if (operation === 'getStatistics') {
+						// account/GetStatistics is POST-only; validator requires
+						// `general:true` OR a `start_date`/`end_date` pair
+						// (required_unless:general,true). The 0.3.x GET-with-no-body
+						// shape always failed validation and surfaced no data.
+						// Response key is `statistics`, not `data`.
+						const startDate = String(this.getNodeParameter('startDate', i, '') as string).trim();
+						const endDate = String(this.getNodeParameter('endDate', i, '') as string).trim();
+						const body: IDataObject =
+							startDate && endDate
+								? { start_date: startDate, end_date: endDate }
+								: { general: true };
 						const res = await simplyprintCall(this, {
-							method: 'GET',
+							method: 'POST',
 							path: 'account/GetStatistics',
+							body,
 						});
-						result = (res as IDataObject).data ?? res;
+						result = (res as IDataObject).statistics ?? (res as IDataObject).data ?? res;
 					} else if (operation === 'getAllPrintHistory') {
+						// `print_history/Get` does not exist (404; there is no
+						// `api/API/Endpoints/print_history/` directory). The actual
+						// endpoint is `POST /jobs/GetPaginatedPrintJobs`, response
+						// key `data`.
 						const res = await simplyprintCall(this, {
-							method: 'GET',
-							path: 'print_history/Get',
+							method: 'POST',
+							path: 'jobs/GetPaginatedPrintJobs',
+							body: { page: 1 },
 						});
 						const raw = ((res as IDataObject).data ?? res) as IDataObject | IDataObject[];
 						result = applySimplify(raw, true, simplifyPrintHistory);
@@ -592,10 +690,13 @@ export class SimplyPrint implements INodeType {
 							body.mms_map = mmsMap as IDataObject;
 						}
 
+						// printers/actions/CreateJob calls RequirePrinters(self::POST, ...)
+						// printer ids are read from the body only. The 0.3.x query
+						// param landed in $_GET and was silently dropped.
+						body.pid = printerIds.join(',');
 						const res = await simplyprintCall(this, {
 							method: 'POST',
 							path: 'printers/actions/CreateJob',
-							qs: { pid: printerIds.join(',') },
 							body,
 						});
 						result = res;
