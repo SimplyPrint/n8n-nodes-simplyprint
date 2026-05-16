@@ -27,7 +27,12 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22.x'
+          # Node 24 ships npm 11+, which has the automatic Trusted Publishing
+          # flow (npmjs.com OIDC auth without an NPM_TOKEN secret). Node 22's
+          # bundled npm 10 only does OIDC for `--provenance` signing, NOT for
+          # the publish auth itself — 0.4.0 went out under 24, downgrading
+          # silently broke `npm publish` with a 404 on the registry PUT.
+          node-version: '24.x'
           registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
