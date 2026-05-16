@@ -10,8 +10,12 @@ jobs:
   lint-and-build:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        node-version: [22.x]
+        # 22.x is current LTS; 24.x is what the release workflow publishes under
+        # (npm 11+ for Trusted Publishing). Keep both green so a Node-24-only
+        # regression doesn't surface at release time.
+        node-version: [22.x, 24.x]
     steps:
       - uses: actions/checkout@v4
 
